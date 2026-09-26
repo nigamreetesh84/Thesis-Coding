@@ -4,7 +4,7 @@ import json
 
 from src.domain.eligibility import EligibilityOracle
 from src.domain.entities import Decision
-from evaluation.run_ablaation import citation_is_valid
+from evaluation.run_ablation import citation_is_valid
 from src.infrastructure.llm_client import StubLLM
 from src.model import GroundedPromptBuilder, parse_llm_response
 
