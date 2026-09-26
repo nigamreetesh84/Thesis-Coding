@@ -94,9 +94,9 @@
       : "";
 
     // -------------------------------------------------------------------------
-    // MOCK BACKEND FOR DEMONSTRATION (Remove this block if connecting to a real API)
+    // Enable the mock backend only with ?mock=true.
     // -------------------------------------------------------------------------
-    const USE_MOCK = true; // Set to false to use the real fetch calls below
+    const USE_MOCK = new URLSearchParams(window.location.search).get("mock") === "true";
 
     async function mockFetch(url, options) {
       return new Promise((resolve) => {
