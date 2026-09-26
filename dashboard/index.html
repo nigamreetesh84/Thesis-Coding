@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Credit Card Recommender</title>
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      background: #0f1117; color: #e6e6e6; font-family: system-ui, sans-serif;
+      margin: 0; padding: 2rem; max-width: 960px; margin-inline: auto;
+    }
+    h1 { font-size: 1.4rem; margin-bottom: 0.25rem; }
+    .subtitle { color: #9aa0a6; margin-bottom: 1.5rem; }
+    form {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem; background: #171923; padding: 1.25rem; border-radius: 10px;
+      border: 1px solid #2a2d3a;
+    }
+    label { display: flex; flex-direction: column; font-size: 0.85rem; gap: 0.35rem; }
+    input, select {
+      background: #0f1117; color: #e6e6e6; border: 1px solid #2a2d3a;
+      border-radius: 6px; padding: 0.5rem;
+    }
+    button {
+      grid-column: 1 / -1; background: #4c6ef5; color: white; border: none;
+      border-radius: 8px; padding: 0.75rem; font-size: 1rem; cursor: pointer;
+    }
+    button:hover { background: #3b5bdb; }
+    .stats { display: flex; gap: 1.5rem; margin: 1.25rem 0; flex-wrap: wrap; }
+    .stat { background: #171923; border: 1px solid #2a2d3a; border-radius: 8px; padding: 0.75rem 1rem; }
+    .stat .value { font-size: 1.3rem; font-weight: 600; }
+    .stat .label { font-size: 0.75rem; color: #9aa0a6; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
+    .card { border-radius: 10px; padding: 1rem; border: 1px solid #2a2d3a; }
+    .card.recommended { background: #0f3d24; border-color: #2b8a3e; }
+    .card.not-eligible { background: #3d1a1a; border-color: #c92a2a; }
+    .card h3 { margin: 0 0 0.35rem; font-size: 1rem; }
+    .card .badge {
+      display: inline-block; font-size: 0.7rem; padding: 0.15rem 0.5rem;
+      border-radius: 999px; margin-bottom: 0.5rem; font-weight: 600;
+    }
+    .card.recommended .badge { background: #2b8a3e; }
+    .card.not-eligible .badge { background: #c92a2a; }
+    .card p { margin: 0.25rem 0; font-size: 0.85rem; color: #d3d6db; }
+    .card .chunk { font-size: 0.75rem; color: #9aa0a6; }
+    #error { color: #ff8787; margin-top: 0.75rem; }
+  </style>
+</head>
+<body>
+  <h1>Eligibility-Aware Credit Card Recommender</h1>
+  <p class="subtitle">Retrieval-augmented, explainable, multi-bank recommendation dashboard.</p>
+
+  <form id="profile-form">
+    <label>Annual income (INR)
+      <input type="number" id="annual_income" value="800000" min="0" required />
+    </label>
+    <label>Age
+      <input type="number" id="age" value="27" min="18" max="100" required />
+    </label>
+    <label>CIBIL score
+      <input type="number" id="cibil" value="760" min="300" max="900" required />
+    </label>
+    <label>Employment
+      <select id="employment">
+        <option value="salaried">Salaried</option>
+        <option value="self-employed">Self-employed</option>
+        <option value="business owner">Business owner</option>
+      </select>
+    </label>
+    <label>Existing bank relationship
+      <select id="existing_relationship">
+        <option value="false">No</option>
+        <option value="true">Yes</option>
+      </select>
+    </label>
+    <button type="submit">Get recommendations</button>
+  </form>
+
+  <div id="error"></div>
+
+  <div class="stats">
+    <div class="stat"><div class="value" id="stat-latency">-</div><div class="label">Latency (l_ms)</div></div>
+    <div class="stat"><div class="value" id="stat-k">-</div><div class="label">Retrieved k</div></div>
+    <div class="stat"><div class="value" id="stat-count">-</div><div class="label">Decisions</div></div>
+    <div class="stat"><div class="value" id="stat-p95">-</div><div class="label">p95 latency (telemetry)</div></div>
+  </div>
+
+  <div class="cards" id="cards"></div>
+
+  <script>
+    const API_BASE = (window.location.port === "5500" || window.location.protocol === "file:")
+      ? "http://localhost:8000"
+      : "";
+
+    // -------------------------------------------------------------------------
+    // MOCK BACKEND FOR DEMONSTRATION (Remove this block if connecting to a real API)
+    // -------------------------------------------------------------------------
+    const USE_MOCK = true; // Set to false to use the real fetch calls below
+
+    async function mockFetch(url, options) {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          if (url.includes('/telemetry')) {
+            resolve({ ok: true, json: async () => ({ p95_latency_ms: 42.5 }) });
+          } else if (url.includes('/recommend')) {
+            const payload = JSON.parse(options.body);
+            const isEligible = payload.cibil > 700;
+            resolve({
+              ok: true,
+              json: async () => ({
+                latency_ms: 120.5,
+                retrieved_k: 5,
+                decisions: [
+                  {
+                    recommended: isEligible,
+                    bank: "HDFC",
+                    card: "Infinia",
+                    reason: isEligible ? "Excellent credit score and high income." : "CIBIL score below threshold.",
+                    cited_chunk_id: "hdfc_infinia_001"
+                  },
+                  {
+                    recommended: true,
+                    bank: "SBI",
+                    card: "SimplyCLICK",
+                    reason: "Good fit for online shopping.",
+                    cited_chunk_id: "sbi_simply_004"
+                  }
+                ]
+              })
+            });
+          }
+        }, 600); // simulate network delay
+      });
+    }
+
+    const originalFetch = window.fetch;
+    window.fetch = async (url, options) => {
+      if (USE_MOCK) return mockFetch(url, options);
+      return originalFetch(url, options);
+    };
+    // -------------------------------------------------------------------------
+
+    async function refreshTelemetry() {
+      try {
+        const res = await fetch(`${API_BASE}/telemetry`);
+        const data = await res.json();
+        document.getElementById("stat-p95").textContent = data.p95_latency_ms.toFixed(0) + " ms";
+      } catch (e) {
+        // telemetry is best-effort; ignore failures here
+      }
+    }
+
+    document.getElementById("profile-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      document.getElementById("error").textContent = "";
+
+      const payload = {
+        annual_income: Number(document.getElementById("annual_income").value),
+        age: Number(document.getElementById("age").value),
+        cibil: Number(document.getElementById("cibil").value),
+        employment: document.getElementById("employment").value,
+        existing_relationship: document.getElementById("existing_relationship").value === "true",
+        banks: ["SBI", "HDFC"],
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/recommend`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          throw new Error(`Request failed with status ${res.status}`);
+        }
+        const data = await res.json();
+        renderResult(data);
+        refreshTelemetry();
+      } catch (err) {
+        document.getElementById("error").textContent = "Error: " + err.message;
+      }
+    });
+
+    function renderResult(data) {
+      document.getElementById("stat-latency").textContent = data.latency_ms.toFixed(1) + " ms";
+      document.getElementById("stat-k").textContent = data.retrieved_k;
+      document.getElementById("stat-count").textContent = data.decisions.length;
+
+      const container = document.getElementById("cards");
+      container.innerHTML = "";
+      for (const decision of data.decisions) {
+        const card = document.createElement("div");
+        card.className = "card " + (decision.recommended ? "recommended" : "not-eligible");
+        card.innerHTML = `
+          <span class="badge">${decision.recommended ? "RECOMMENDED" : "NOT ELIGIBLE"}</span>
+          <h3>${decision.bank} — ${decision.card}</h3>
+          <p>${decision.reason}</p>
+          <p class="chunk">cited chunk: ${decision.cited_chunk_id ?? "n/a"}</p>
+        `;
+        container.appendChild(card);
+      }
+    }
+
+    refreshTelemetry();
+  </script>
+</body>
+</html>

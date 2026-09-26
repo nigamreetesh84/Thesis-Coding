@@ -1,0 +1,9 @@
+bank,card,min_income,min_age,min_cibil,employment,relationship_required
+SBI,SBI SimplyCLICK,600000,21,750,salaried,FALSE
+SBI,SBI SimplySAVE,300000,21,700,any,FALSE
+SBI,SBI Prime,1500000,21,750,"salaried,self-employed",FALSE
+SBI,SBI Elite,2000000,21,780,"salaried,self-employed,business owner",TRUE
+HDFC,HDFC MoneyBack+,250000,18,650,any,FALSE
+HDFC,HDFC Millennia,350000,21,700,"salaried,self-employed",FALSE
+HDFC,HDFC Regalia,1200000,21,750,"salaried,self-employed",FALSE
+HDFC,HDFC Diners Club Black,2500000,21,800,"salaried,business owner",TRUE
