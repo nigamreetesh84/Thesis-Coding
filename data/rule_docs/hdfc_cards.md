@@ -8,8 +8,8 @@ spreadsheet used for ground truth.
 
 ### HDFC MoneyBack+ – Income Requirement
 MoneyBack+ is HDFC's entry-level cashback card. Applicants need a modest
-annual income of about two-and-a-half lakh rupees (₹2,50,000), whether
-they are salaried or self-employed.
+annual income of about two-and-a-half lakh rupees (₹2,50,000), regardless
+of their employment category.
 
 ### HDFC MoneyBack+ – Age and Credit Score
 Applicants as young as 18 can apply, provided they can show some
