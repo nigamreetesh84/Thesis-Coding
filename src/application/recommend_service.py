@@ -6,14 +6,23 @@ the retriever and an LLM client (via `RAGRecommender`) and exposes a single
 """
 from __future__ import annotations
 
+from typing import Protocol
+
 from src.domain.entities import Decision, UserProfile
-from src.model import RAGRecommender
+
+
+class Recommender(Protocol):
+    """Application-facing contract for producing recommendations."""
+
+    def recommend(self, profile: UserProfile) -> tuple[list[Decision], int]:
+        """Return the decisions and number of retrieved chunks."""
+        ...
 
 
 class RecommendService:
     """Orchestrates a single recommend-a-card use case."""
 
-    def __init__(self, recommender: RAGRecommender) -> None:
+    def __init__(self, recommender: Recommender) -> None:
         self.recommender = recommender
 
     def recommend(self, profile: UserProfile) -> tuple[list[Decision], int]:
