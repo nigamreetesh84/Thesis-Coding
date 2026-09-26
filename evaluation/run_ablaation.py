@@ -40,7 +40,7 @@ from src.infrastructure.llm_client import (
     UngroundedStubLLM,
 )
 from src.infrastructure.vector_store import VectorStore
-from src.model import GroundedPromptBuilder, RAGRecommender, Retriever
+from src.model import GroundedPromptBuilder, RAGRecommender, Retriever, parse_llm_response
 
 STRETCH_TARGET_ACCURACY = 0.90
 ALPHA = 0.05
@@ -81,6 +81,16 @@ def profile_correct(actual: list[Decision], expected: list[Decision]) -> bool:
     if set(actual_map.keys()) != set(expected_map.keys()):
         return False
     return all(actual_map[k] == expected_map[k] for k in expected_map)
+
+
+def citation_is_valid(decision: Decision, retrieved: list[dict[str, Any]]) -> bool:
+    """Check that a cited chunk was retrieved and belongs to this decision's card."""
+    return decision.cited_chunk_id is not None and any(
+        chunk["chunk_id"] == decision.cited_chunk_id
+        and chunk["bank"] == decision.bank
+        and chunk["card"] == decision.card
+        for chunk in retrieved
+    )
 
 
 def build_retriever(top_k: int) -> Retriever:
@@ -347,7 +357,35 @@ def rq2_context_precision_recall(records: list[GoldRecord], top_k: int) -> dict[
     }
 
 
-def print_rq_summary(a1: dict[str, Any], rq1: dict[str, float], rq2: dict[str, float]) -> None:
+def rq4_traceability_metrics(records: list[GoldRecord], top_k: int, use_stub: bool) -> dict[str, float]:
+    """Measure profile-level label consistency and per-decision citation validity."""
+    if not records:
+        return {"label_consistency_rate": 0.0, "citation_validity_rate": 0.0}
+
+    retriever = build_retriever(top_k)
+    grounded_llm, _ = make_llm_clients(use_stub)
+    prompt_builder = GroundedPromptBuilder()
+    consistent_profiles = 0
+    valid_citations = 0
+    decision_count = 0
+
+    for record in records:
+        retrieved = retriever.retrieve(record.profile.to_query())
+        prompt = prompt_builder.build(record.profile, retrieved)
+        decisions = parse_llm_response(grounded_llm.generate(prompt))
+        consistent_profiles += profile_correct(decisions, record.expected)
+        decision_count += len(decisions)
+        valid_citations += sum(citation_is_valid(decision, retrieved) for decision in decisions)
+
+    return {
+        "label_consistency_rate": consistent_profiles / len(records),
+        "citation_validity_rate": valid_citations / decision_count if decision_count else 0.0,
+    }
+
+
+def print_rq_summary(
+    a1: dict[str, Any], rq1: dict[str, float], rq2: dict[str, float], rq4: dict[str, float]
+) -> None:
     """Print each research question label next to its mapped metric."""
     print("\n=== Research Question summary ===")
     print(
@@ -364,8 +402,9 @@ def print_rq_summary(a1: dict[str, Any], rq1: dict[str, float], rq2: dict[str, f
         f"relative error reduction={a1['relative_error_reduction_vs_ungrounded']:.1%}; verdict={a1['verdict']}"
     )
     print(
-        "RQ4 (explanation correctness): consistent-with-expected AND traceable-to-cited-chunk; "
-        "see profile_correct() and the cited_chunk_id field on every Decision"
+        f"RQ4 (explanation correctness): label_consistency_rate={rq4['label_consistency_rate']:.3f}; "
+        f"citation_validity_rate={rq4['citation_validity_rate']:.3f} "
+        "(cited chunk retrieved for the query and matching the decision's bank/card)"
     )
 
 
@@ -396,7 +435,8 @@ def main() -> None:
 
     rq1 = rq1_classification_metrics(records, args.top_k, args.use_stub_llm)
     rq2 = rq2_context_precision_recall(records, args.top_k)
-    print_rq_summary(a1, rq1, rq2)
+    rq4 = rq4_traceability_metrics(records, args.top_k, args.use_stub_llm)
+    print_rq_summary(a1, rq1, rq2, rq4)
 
     if "A2" in args.arms:
         print("\n=== A2: top-k sweep (STRONGEST NOVEL CONTRIBUTION) ===")
