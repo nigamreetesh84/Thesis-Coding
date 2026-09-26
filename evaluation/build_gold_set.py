@@ -34,6 +34,7 @@ BORDERLINE_THRESHOLDS = {
 }
 
 DEFAULT_GOLD_SET_PATH = Path("data/gold_test_set.jsonl")
+DEFAULT_INDEPENDENT_LABELS_PATH = Path("data/gold_set_independent_labels.jsonl")
 
 
 def cohens_kappa(labels_a: Sequence[bool], labels_b: Sequence[bool]) -> float:
@@ -156,6 +157,38 @@ def finalize(records: list[dict], kappa_a: Sequence[bool], kappa_b: Sequence[boo
     return kappa
 
 
+def load_independent_labels(path: str | Path, records: list[dict]) -> list[bool]:
+    """Load independent labels keyed by profile index, bank, and card.
+
+    Each JSONL row must contain ``profile_index``, ``bank``, ``card``, and a
+    boolean ``recommended`` field.
+    """
+    expected_keys = [
+        (profile_index, decision["bank"], decision["card"])
+        for profile_index, record in enumerate(records)
+        for decision in record["expected"]
+    ]
+    labels_by_key: dict[tuple[int, str, str], bool] = {}
+    with Path(path).open(encoding="utf-8") as annotation_file:
+        for line_number, line in enumerate(annotation_file, start=1):
+            row = json.loads(line)
+            key = (int(row["profile_index"]), str(row["bank"]), str(row["card"]))
+            label = row["recommended"]
+            if not isinstance(label, bool):
+                raise ValueError(f"Annotation on line {line_number} must have a boolean recommended value")
+            if key in labels_by_key:
+                raise ValueError(f"Duplicate independent annotation for {key} on line {line_number}")
+            labels_by_key[key] = label
+
+    expected_key_set = set(expected_keys)
+    actual_key_set = set(labels_by_key)
+    if actual_key_set != expected_key_set:
+        missing = len(expected_key_set - actual_key_set)
+        unexpected = len(actual_key_set - expected_key_set)
+        raise ValueError(f"Independent annotations do not match the gold set: {missing} missing, {unexpected} unexpected")
+    return [labels_by_key[key] for key in expected_keys]
+
+
 def write_gold_set(records: list[dict], path: str | Path = DEFAULT_GOLD_SET_PATH) -> None:
     """Write gold set records to a JSON Lines file, one profile per line."""
     path = Path(path)
@@ -167,30 +200,18 @@ def write_gold_set(records: list[dict], path: str | Path = DEFAULT_GOLD_SET_PATH
 
 def main() -> None:
     """CLI entry point: python -m evaluation.build_gold_set."""
-    records = build_gold_set()
-
-    # Self-consistency smoke test: re-running the (deterministic) oracle
-    # over the same profiles must reproduce the stored expected labels.
-    # This is NOT a substitute for real dual-human annotation kappa, which
-    # a dissertation write-up should report from an actual annotation pass.
-    oracle = EligibilityOracle()
-    labels_a = [d["recommended"] for r in records for d in r["expected"]]
-    labels_b = [
-        d.recommended
-        for r in records
-        for d in oracle.evaluate(
-            UserProfile(
-                annual_income=r["profile"]["annual_income"],
-                age=r["profile"]["age"],
-                cibil=r["profile"]["cibil"],
-                employment=r["profile"]["employment"],
-                existing_relationship=r["profile"]["existing_relationship"],
-                banks=r["profile"]["banks"],
-            )
+    if not DEFAULT_INDEPENDENT_LABELS_PATH.exists():
+        print(
+            "GOLD-SET FINALIZATION NOT YET AVAILABLE — "
+            f"requires independent annotations at {DEFAULT_INDEPENDENT_LABELS_PATH}"
         )
-    ]
+        return
+
+    records = build_gold_set()
+    labels_a = [d["recommended"] for r in records for d in r["expected"]]
+    labels_b = load_independent_labels(DEFAULT_INDEPENDENT_LABELS_PATH, records)
     kappa = finalize(records, labels_a, labels_b)
-    print(f"Gold set generation self-consistency kappa: {kappa:.3f}")
+    print(f"Oracle-vs-independent-annotator Cohen's kappa: {kappa:.3f}")
 
     write_gold_set(records)
     n_reworded = sum(1 for r in records if r["variant"] == "reworded")
