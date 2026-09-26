@@ -91,6 +91,7 @@ def _percentile(values: list[float], pct: float) -> float:
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Wire the recommender (embedder, FAISS index, LLM client) on startup."""
     embedder = Embedder(settings.model_name)
+    embedder.encode(["startup warmup"])
     vector_store = VectorStore(settings.faiss_index_path, settings.chunks_parquet_path).load()
     retriever = Retriever(embedder, vector_store, top_k=settings.top_k)
     llm_client = StubLLM() if settings.use_stub_llm else LocalLLMClient(settings.llm_model_name)
