@@ -145,32 +145,18 @@ def load_human_labelled_subset(path: str | Path) -> tuple[list[ExplanationSample
     return samples, labels
 
 
-def _synthetic_placeholder_subset() -> tuple[list[ExplanationSample], list[bool]]:
-    """A small synthetic stand-in used only when no real human-labelled
-    subset file is present, so the script remains runnable out of the box."""
-    samples = [
-        ExplanationSample(
-            profile_text="synthetic",
-            retrieved_rule_text=(
-                "Applicants need a minimum yearly income of roughly three lakh rupees (\u20b93,00,000)."
-            ),
-            decision_reason="Not eligible because income is below the required minimum of 300000.",
-            recommended=False,
-        )
-    ] * 20
-    labels = [True] * 20
-    return samples, labels
-
-
 def main() -> None:
     """CLI entry point: run ragas_faithfulness + fact_score + judge-validation kappa."""
     judge: JudgeModel = StubJudgeModel() if settings.use_stub_llm else LocalJudgeModel(settings.judge_model_name)
     human_subset_path = settings.data_dir / "human_labelled_explanations.jsonl"
-    if human_subset_path.exists():
-        samples, human_labels = load_human_labelled_subset(human_subset_path)
-    else:
-        print(f"No human-labelled subset found at {human_subset_path}; using a small synthetic placeholder.")
-        samples, human_labels = _synthetic_placeholder_subset()
+    if not human_subset_path.exists():
+        print(
+            "JUDGE-VALIDATION KAPPA NOT YET COMPUTED — "
+            f"requires human-labelled subset at {human_subset_path}"
+        )
+        return
+
+    samples, human_labels = load_human_labelled_subset(human_subset_path)
 
     faithfulness = ragas_faithfulness(samples, judge)
     factscore = fact_score(samples, judge)
