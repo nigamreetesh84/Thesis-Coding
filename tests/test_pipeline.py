@@ -56,6 +56,21 @@ def test_embedder_returns_normalized_float32(monkeypatch) -> None:
     np.testing.assert_allclose(np.linalg.norm(vectors, axis=1), np.ones(2), atol=1e-6)
 
 
+def test_embedder_hash_fallback_returns_normalized_vectors(monkeypatch) -> None:
+    def unavailable_model(model_name: str) -> None:
+        raise OSError(f"Model unavailable: {model_name}")
+
+    monkeypatch.setattr("src.infrastructure.embedder.SentenceTransformer", unavailable_model)
+    embedder = Embedder("unavailable-model")
+
+    vectors = embedder.encode(["fallback one", "fallback two"])
+
+    assert embedder.using_fallback is True
+    assert vectors.shape == (2, 384)
+    assert vectors.dtype == np.float32
+    np.testing.assert_allclose(np.linalg.norm(vectors, axis=1), np.ones(2), atol=1e-6)
+
+
 def test_pipeline_persists_faiss_and_chunk_table(tmp_path, unit_vector_embedder) -> None:
     rule_docs = tmp_path / "rule_docs"
     rule_docs.mkdir()

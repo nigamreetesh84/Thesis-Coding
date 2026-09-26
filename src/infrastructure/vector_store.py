@@ -23,7 +23,7 @@ class VectorStore:
         self._index: faiss.Index | None = None
         self._chunks: pd.DataFrame | None = None
 
-    def load(self) -> "VectorStore":
+    def load(self) -> VectorStore:
         """Load the FAISS index and chunk table from disk. Returns self."""
         self._index = faiss.read_index(str(self.index_path))
         self._chunks = pd.read_parquet(self.chunks_path)

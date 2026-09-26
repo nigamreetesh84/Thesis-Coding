@@ -47,7 +47,7 @@ class Embedder:
         """Encode texts into normalized float32 vectors of shape (n, 384)."""
         model = self.model
         if self.using_fallback or model is None:
-            return _hash_embeddings(texts)
+            return self._hash_embeddings(texts)
 
         embeddings = model.encode(
             texts,
@@ -57,6 +57,7 @@ class Embedder:
         )
         return embeddings.astype(np.float32)
 
+    @staticmethod
     def _hash_embeddings(texts: list[str]) -> np.ndarray:
         """Deterministic local fallback embeddings with the Sentence-BERT contract."""
         vectors = np.zeros((len(texts), EMBEDDING_DIM), dtype=np.float32)
