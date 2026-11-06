@@ -18,8 +18,8 @@ sufficient.
 
 ### HDFC MoneyBack+ – Employment and Relationship
 Salaried staff, self-employed professionals, and small business owners are
-all welcome to apply, and there is no requirement to already have a
-HDFC.
+all welcome to apply, and there is no requirement to already hold an
+HDFC account.
 
 ### HDFC Millennia – Income Requirement
 Millennia targets young professionals and asks for a minimum gross annual

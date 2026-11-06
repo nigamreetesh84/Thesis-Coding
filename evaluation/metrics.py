@@ -40,3 +40,51 @@ def context_precision_recall(retrieved_ids: Sequence[str], relevant_ids: Sequenc
     precision = len(hits) / len(retrieved_set) if retrieved_set else 0.0
     recall = len(hits) / len(relevant_set) if relevant_set else 0.0
     return {"context_precision": precision, "context_recall": recall}
+
+def wilson_interval(successes: int, n: int, z: float = 1.959964) -> tuple[float, float]:
+    """95% Wilson score interval for a proportion (well behaved at 0 and 1 and small n).
+
+    With n = 20 or 40 profiles the uncertainty is large (e.g. 8/20 -> 0.22-0.61),
+    so every accuracy in the dissertation should carry this interval.
+    """
+    if n <= 0:
+        return (0.0, 0.0)
+    p = successes / n
+    denom = 1 + z * z / n
+    centre = (p + z * z / (2 * n)) / denom
+    half = z * ((p * (1 - p) / n + z * z / (4 * n * n)) ** 0.5) / denom
+    return (max(0.0, centre - half), min(1.0, centre + half))
+
+
+# Fields compared when scoring the LLM's extracted requirements against the table.
+EXTRACTION_FIELDS = ("min_income", "min_age", "min_cibil", "allowed_employment", "relationship_required")
+
+
+def extraction_field_matches(extracted: dict, truth: dict) -> dict[str, bool]:
+    """Field-by-field comparison of one card's extracted requirements with the table row.
+
+    `extracted` is CardRequirements.as_dict(); `truth` holds min_income, min_age,
+    min_cibil, employment (tuple, ("any",) for any) and relationship_required.
+    A missing (None) relationship is read as "not required", matching how the
+    decision procedure applies it.
+    """
+    truth_emp = truth["employment"]
+    truth_any = "any" in truth_emp or set(truth_emp) >= {"salaried", "self-employed", "business owner"}
+    ext_emp = extracted.get("allowed_employment")
+    ext_any = ext_emp in (None, "any") or (isinstance(ext_emp, list) and set(ext_emp) >= {"salaried", "self-employed", "business owner"})
+    if truth_any or ext_any:
+        employment_ok = truth_any and ext_any
+    else:
+        employment_ok = set(ext_emp) == set(truth_emp)
+
+    def num_ok(key: str) -> bool:
+        value = extracted.get(key)
+        return value is not None and abs(float(value) - float(truth[key])) < 0.5
+
+    return {
+        "min_income": num_ok("min_income"),
+        "min_age": num_ok("min_age"),
+        "min_cibil": num_ok("min_cibil"),
+        "allowed_employment": employment_ok,
+        "relationship_required": bool(extracted.get("relationship_required")) == bool(truth["relationship_required"]),
+    }

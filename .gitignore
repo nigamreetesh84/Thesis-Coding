@@ -1,25 +1,12 @@
-# Environment variables
-.env
-
-# Python cache
 __pycache__/
-*.py[cod]
-*$py.class
+*.pyc
+.ruff_cache/
+artifacts/
+results/
+.pytest_cache/
 
-# Virtual Environments
-venv/
-env/
+mydev/
 .venv/
-mydev
-
-# VS Code settings
-.vscode/
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Data (Optional: if your data folder is huge, don't push it)
-# data/
-
-Mehul/
+__pycache__/
+*.pyc
+artifacts/

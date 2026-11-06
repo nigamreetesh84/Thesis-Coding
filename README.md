@@ -10,6 +10,8 @@ A local retrieval-augmented recommendation prototype for SBI and HDFC cards. Rul
 - `src/model.py`, `src/pipeline.py`, and `src/api.py` form the outer composition and execution layer.
 - Faithfulness validation is offline only. The live API does not apply a validation gate between model output and its response.
 
+By default the recommender evaluates **one card per prompt** (all of that card's retrieved rules plus the applicant profile) and sends the per-card prompts to the local LLM as one batch; set `RAG_PER_CARD=0` for a single prompt covering all cards. Greedy generations are cached on disk (`LLM_CACHE_PATH`) so identical prompts across ablation arms are generated once and runs resume after an interruption.
+
 Each retrieved chunk contains one atomic rule for a card. The final decision composes several independent rules in the prompt, so decision-making is multi-hop even though retrieval operates over atomic chunks. This small rule set does not require GraphRAG-style retrieval machinery.
 
 ## Quickstart
@@ -50,7 +52,11 @@ The benchmark includes a fresh API startup and first recommendation as well as r
 python -m evaluation.run_ablation --gold-set data/gold_test_set.jsonl --use-stub-llm --arms A2 A3 A5 A6
 ```
 
-A1 runs as the primary grounded-versus-ungrounded comparison. A2, A3, A5, and A6 are independently selectable with `--arms`; A4 requires distinct GPU-backed model weights and is skipped under `StubLLM`.
+A1 runs as the primary grounded-versus-ungrounded comparison. A2, A3, A5, and A6 are independently selectable with `--arms`; A4 (model selection, `--a4-models`, default Qwen2.5-3B vs 7B) requires GPU-backed weights and is skipped under `StubLLM`.
+
+Useful options: `--split test|dev|all` (test = every 3rd gold profile, 40 of 120; dev = the other 80, for any tuning), `--limit N` (evenly spaced subsample), `--joint-prompt` (one prompt for all cards instead of the default one prompt per card), `--out-dir results` (every number is merged into `results/results.json`; per-profile predictions go to `predictions_*.jsonl`).
+
+Before trusting any number run `python -m evaluation.verify_setup`: it checks that the rule documents agree with the eligibility table, the gold labels equal the oracle, the index matches the documents, and the grounded/ungrounded prompts are built correctly. See `EVALUATION_NOTES.md` for design decisions and limitations.
 
 Gold-set finalization requires independent annotation rows at `data/gold_set_independent_labels.jsonl`, keyed by `profile_index`, `bank`, and `card`, with a boolean `recommended` value. Without those annotations, the builder refuses to report kappa or write a finalized set. Judge-versus-human kappa likewise requires `data/human_labelled_explanations.jsonl`; it is reported as not computed when that file is absent.
 

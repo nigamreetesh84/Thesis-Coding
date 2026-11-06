@@ -112,6 +112,11 @@ class EligibilityOracle:
             for row in df.itertuples(index=False)
         ]
 
+    @property
+    def rules(self) -> list[_CardRule]:
+        """The parsed table rows (used by the stub LLM and to score extractions)."""
+        return list(self._rules)
+
     def cards_for_banks(self, banks: list[str]) -> list[tuple[str, str]]:
         """Return (bank, card) pairs offered by any of the requested banks."""
         banks_norm = {b.strip().lower() for b in banks}
