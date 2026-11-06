@@ -370,7 +370,7 @@ def rq4_traceability_metrics(records: list[GoldRecord], top_k: int, use_stub: bo
     decision_count = 0
 
     for record in records:
-        retrieved = retriever.retrieve(record.profile.to_query())
+        retrieved = retriever.retrieve_for_profile(record.profile)
         prompt = prompt_builder.build(record.profile, retrieved)
         decisions = parse_llm_response(grounded_llm.generate(prompt))
         consistent_profiles += profile_correct(decisions, record.expected)

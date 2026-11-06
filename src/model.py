@@ -36,14 +36,17 @@ SYSTEM_PROMPT = (
     "described under '### APPLICANT PROFILE' is eligible for each card. Never "
     "invent a threshold, number, or condition that is not explicitly present in "
     "the retrieved rules. For every card you DO NOT recommend, give a specific, "
-    "principal reason naming the exact criterion that fails. Respond with ONLY a "
-    "JSON array of objects, each with exactly the fields: bank, card, "
-    "recommended, reason, cited_chunk_id. Do not add any prose before or after "
-    "the JSON array."
+    "principal reason naming the exact criterion that fails. For every bank/card "
+    "pair listed under '### CARDS TO EVALUATE', return exactly one decision. Do not "
+    "omit a pair or add any other pair. The reason must always be a non-empty "
+    "string, including when recommending a card. Cite a retrieved chunk belonging "
+    "to that same bank/card. Respond with ONLY a JSON array of objects, each with "
+    "exactly the fields: bank, card, recommended, reason, cited_chunk_id. Do not "
+    "add any prose before or after the JSON array."
 )
 
 class Retriever:
-    """FAISS top-k semantic retriever over embedded rule-document chunks."""
+    """FAISS semantic retriever over embedded rule-document chunks."""
 
     def __init__(self, embedder: Embedder, vector_store: VectorStore, top_k: int = 4) -> None:
         self.embedder = embedder
@@ -56,11 +59,42 @@ class Retriever:
         query_vector = self.embedder.encode([query])
         return self.vector_store.search(query_vector, top_k=k)
 
+    def retrieve_for_profile(self, profile: UserProfile) -> list[dict[str, Any]]:
+        """Retrieve up to top_k rules for every card in the requested banks."""
+        chunks = self.vector_store.chunks
+        candidate_cards = chunks[["bank", "card"]].drop_duplicates()
+        requested_banks = {bank.casefold() for bank in profile.banks}
+        candidate_cards = candidate_cards[
+            candidate_cards["bank"].str.casefold().isin(requested_banks)
+        ]
+
+        total_chunks = len(chunks)
+        cards = list(candidate_cards.itertuples(index=False, name=None))
+        if total_chunks == 0 or not cards:
+            return []
+
+        queries = [f"{profile.to_query()} Card: {bank} {card}." for bank, card in cards]
+        query_vectors = self.embedder.encode(queries)
+        retrieved: list[dict[str, Any]] = []
+        for (bank, card), query_vector in zip(cards, query_vectors, strict=True):
+            ranked_chunks = self.vector_store.search(query_vector, top_k=total_chunks)
+            card_chunks = [
+                chunk
+                for chunk in ranked_chunks
+                if chunk["bank"].casefold() == bank.casefold()
+                and chunk["card"].casefold() == card.casefold()
+            ]
+            retrieved.extend(card_chunks[: self.top_k])
+
+        return retrieved
+
 class GroundedPromptBuilder:
     """Builds the recommend-explain-cite grounded prompt fed to the LLM."""
 
     def build(self, profile: UserProfile, retrieved: list[dict[str, Any]]) -> str:
         """Compose the full grounded prompt from a profile and retrieved chunks."""
+        candidate_cards = list(dict.fromkeys((chunk["bank"], chunk["card"]) for chunk in retrieved))
+        cards_block = "\n".join(f"- bank={bank}; card={card}" for bank, card in candidate_cards)
         rules_block = "\n".join(
             f"chunk_id={chunk['chunk_id']} bank={chunk['bank']} card={chunk['card']}\n{chunk['text']}"
             for chunk in retrieved
@@ -76,9 +110,11 @@ class GroundedPromptBuilder:
         return (
             f"SYSTEM:\n{SYSTEM_PROMPT}\n\n"
             f"### RETRIEVED RULES\n{rules_block}\n\n"
+            f"### CARDS TO EVALUATE\n{cards_block}\n\n"
             f"### APPLICANT PROFILE\n{profile_block}\n\n"
             f"### OUTPUT INSTRUCTIONS\n"
-            f"Respond with ONLY a JSON array of decision objects as specified above."
+            f"Return exactly {len(candidate_cards)} decision object(s), one for each listed bank/card pair. "
+            f"Respond with ONLY the JSON array."
         )
 
 def parse_llm_response(raw: str) -> list[Decision]:
@@ -133,7 +169,7 @@ class RAGRecommender:
 
     def recommend(self, profile: UserProfile) -> tuple[list[Decision], int]:
         """Return (decisions, retrieved_k) for the given applicant profile."""
-        retrieved = self.retriever.retrieve(profile.to_query())
+        retrieved = self.retriever.retrieve_for_profile(profile)
         prompt = self.prompt_builder.build(profile, retrieved)
         raw = self.llm_client.generate(prompt)
         decisions = parse_llm_response(raw)

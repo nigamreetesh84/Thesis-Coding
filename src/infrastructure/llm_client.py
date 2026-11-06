@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, ClassVar, Protocol
 
 from src.domain.eligibility import DEFAULT_ELIGIBILITY_TABLE_PATH, EligibilityOracle
 from src.domain.entities import UserProfile
@@ -38,18 +38,33 @@ class LocalLLMClient:
     client never requires a GPU or downloads any weights up front.
     """
 
+    _shared_model_name: ClassVar[str | None] = None
+    _shared_pipeline: ClassVar[Any] = None
+
     def __init__(
         self,
         model_name: str = "mistralai/Mistral-7B-Instruct-v0.2",
-        max_new_tokens: int = 512,
+        max_new_tokens: int = 1024,
     ) -> None:
         self.model_name = model_name
         self.max_new_tokens = max_new_tokens
         self._pipeline: Any = None
 
     def _load(self) -> None:
+        if self._pipeline is not None:
+            return
+        if LocalLLMClient._shared_model_name == self.model_name and LocalLLMClient._shared_pipeline is not None:
+            self._pipeline = LocalLLMClient._shared_pipeline
+            return
+
         import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, pipeline
+
+        if LocalLLMClient._shared_pipeline is not None:
+            LocalLLMClient._shared_pipeline = None
+            LocalLLMClient._shared_model_name = None
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
         quant_config = BitsAndBytesConfig(
             load_in_4bit=True,
@@ -63,17 +78,38 @@ class LocalLLMClient:
             quantization_config=quant_config,
             device_map="auto",
         )
-        self._pipeline = pipeline("text-generation", model=model, tokenizer=tokenizer)
+        LocalLLMClient._shared_pipeline = pipeline("text-generation", model=model, tokenizer=tokenizer)
+        LocalLLMClient._shared_model_name = self.model_name
+        self._pipeline = LocalLLMClient._shared_pipeline
+
+    def _format_prompt(self, prompt: str) -> str:
+        assert self._pipeline is not None
+        tokenizer = self._pipeline.tokenizer
+        if getattr(tokenizer, "chat_template", None):
+            system_marker = "SYSTEM:\n"
+            rules_marker = f"\n\n{RETRIEVED_RULES_HEADING}"
+            if system_marker in prompt and rules_marker in prompt:
+                system_start = prompt.index(system_marker) + len(system_marker)
+                rules_start = prompt.index(rules_marker, system_start)
+                messages = [
+                    {"role": "system", "content": prompt[system_start:rules_start].strip()},
+                    {"role": "user", "content": prompt[rules_start:].strip()},
+                ]
+            else:
+                messages = [{"role": "user", "content": prompt}]
+            return tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        if "mistral" in self.model_name.lower():
+            return f"<s>[INST] {prompt.strip()} [/INST]"
+        return prompt
 
     def generate(self, prompt: str) -> str:
         if self._pipeline is None:
             self._load()
         assert self._pipeline is not None
         outputs = self._pipeline(
-            prompt,
+            self._format_prompt(prompt),
             max_new_tokens=self.max_new_tokens,
             do_sample=False,
-            temperature=0.0,
             return_full_text=False,
         )
         return str(outputs[0]["generated_text"])
