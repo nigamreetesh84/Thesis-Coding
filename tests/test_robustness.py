@@ -339,3 +339,11 @@ def test_hard_rule_documents_keep_the_same_cards_and_sections() -> None:
         return [(c.bank, c.card, c.text.splitlines()[0]) for c in RuleChunker(banks).chunk_directory(Path(folder))]
 
     assert outline("data/rule_docs_hard") == outline("data/rule_docs")
+
+
+def test_multiple_source_ids_keep_the_first() -> None:
+    """A8 run: Qwen cited 'sbi_cards#7,sbi_cards#8' for SBI Prime's income."""
+    req = CardRequirements.from_llm_dict("SBI", "SBI Prime", {
+        "requirements": {"min_annual_income_inr": 1500000},
+        "sources": {"income": "sbi_cards#7,sbi_cards#8", "age": ["sbi_cards#8"]}})
+    assert req.sources == {"income": "sbi_cards#7", "age": "sbi_cards#8"}

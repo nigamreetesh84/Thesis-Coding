@@ -187,7 +187,11 @@ class CardRequirements:
                 if value in (None, "", "null"):
                     continue
                 criterion = criterion_for_key(str(key))
-                sources.setdefault(criterion or str(key), str(value))
+                # "sbi_cards#7,sbi_cards#8" or a list: keep the first id (A8 run, SBI Prime)
+                parts = value if isinstance(value, list) else re.split(r"[,;\s]+", str(value))
+                first = next((str(x).strip() for x in parts if str(x).strip()), None)
+                if first:
+                    sources.setdefault(criterion or str(key), first)
         cited = item.get("cited_chunk_id")
         if cited and "default" not in sources:
             sources["default"] = str(cited)

@@ -103,3 +103,9 @@ Parser and name-recovery changes do not alter prompts, so re-running A1 on test/
 | `data/rule_docs_hard/` (new, DRAFT for review) | A8: same cards, sections and thresholds, harder wording: monthly income, numbers in words, superseded old thresholds, other cards' thresholds mentioned, negated conditions, fee/spend figures that are not conditions | The 40/40 extraction was measured on one clean, self-authored document set (second-marker point S5) |
 | `data/A8_HARD_DOCS_NOTES.md` | Trap-by-trap answer key (not indexed) | |
 | `tests/test_robustness.py` | 5 tests (71 total) | Guard failure modes; hard documents keep the same structure |
+
+### Round 5.5 (7 Nov 2026, after the A8 run): DESIGN FROZEN
+* A8 (holdout, harder documents): extraction 40/40 fields; extract+compare 1.000; LLM decides 0.600; ungrounded extract 0.125.
+* `src/domain/requirements.py`: a source given as several ids ("sbi_cards#7,sbi_cards#8") or a list keeps the first id. Re-scoring the saved A8 extractions: 0/320 verdicts changed; citation validity 287/320 -> 320/320; declines citing the failing rule 217/248 -> 248/248.
+* Caveat for the write-up: the hard documents add traps AND remove all 9 hedge words of the original set ("about", "roughly", "generally", ...). The LLM-decides gain (0.375 -> 0.600) cannot be attributed to either change alone.
+* 1 regression test (72 total). No further design changes: every gold profile has now been evaluated.
