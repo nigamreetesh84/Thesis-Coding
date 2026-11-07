@@ -27,7 +27,7 @@ from typing import Any
 import joblib
 
 from src.domain.entities import Decision, UserProfile
-from src.domain.requirements import CardRequirements, decide
+from src.domain.requirements import CardRequirements, decide, decide_guarded, stated_criteria
 from src.infrastructure.embedder import Embedder
 from src.infrastructure.llm_client import LLMClient
 from src.infrastructure.vector_store import VectorStore
@@ -356,6 +356,9 @@ class RAGRecommender:
         if per_card is None:
             per_card = os.environ.get("RAG_PER_CARD", "1").lower() not in {"0", "false", "no"}
         self.per_card = per_card
+        # Fail-closed guard for extract_compare (default on; RAG_GUARD=0 disables it,
+        # e.g. to show what the guard prevents).
+        self.guard = os.environ.get("RAG_GUARD", "1").lower() not in {"0", "false", "no"}
         mode = (decision_mode or os.environ.get("RAG_DECISION_MODE", "llm")).strip().lower()
         if mode not in DECISION_MODES:
             raise ValueError(f"decision_mode must be one of {DECISION_MODES}, got {mode!r}")
@@ -434,7 +437,11 @@ class RAGRecommender:
                 continue  # unreadable extraction: no decision (shows up in cards_returned_rate)
             req = CardRequirements.from_llm_dict(bank, card, item)
             self.last_requirements.append(req)
-            decisions.append(decide(profile, req))
+            if self.guard:
+                stated = stated_criteria([str(c["text"]) for c in groups[(bank, card)]])
+                decisions.append(decide_guarded(profile, req, stated))
+            else:
+                decisions.append(decide(profile, req))
         return decisions
 
 

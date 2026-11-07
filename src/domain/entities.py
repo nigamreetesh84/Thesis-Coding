@@ -50,3 +50,6 @@ class Decision:
     recommended: bool
     reason: str
     cited_chunk_id: str | None = None
+    # True when the system could not establish the card's requirements reliably
+    # (extract_compare guard); such a decision is never a recommendation.
+    needs_review: bool = False

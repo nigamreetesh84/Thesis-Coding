@@ -10,3 +10,10 @@ mydev/
 __pycache__/
 *.pyc
 artifacts/
+artifacts_hard/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+Mehul/
+mydev/
+*.zip

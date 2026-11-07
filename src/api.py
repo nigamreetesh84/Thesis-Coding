@@ -46,6 +46,7 @@ class DecisionOut(BaseModel):
     recommended: bool
     reason: str
     cited_chunk_id: str | None = None
+    needs_review: bool = False
 
 
 class RecommendOut(BaseModel):

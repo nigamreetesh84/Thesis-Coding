@@ -5,6 +5,7 @@ Run: `python -m evaluation.make_report --results-dir results`
 from __future__ import annotations
 
 import argparse
+import math
 import json
 from collections import defaultdict
 from pathlib import Path
@@ -18,6 +19,21 @@ def _fmt(v: Any) -> str:
 def _table(rows: list[tuple[str, Any]]) -> str:
     rows = [(k, v) for k, v in rows if v is not None]
     return "| metric | value |\n|---|---|\n" + "\n".join(f"| {k} | {_fmt(v)} |" for k, v in rows) + "\n"
+
+
+def exact_mcnemar_p(b: int, c: int) -> float:
+    """Two-sided exact McNemar p-value (binomial test on the discordant pairs, p = 0.5).
+
+    Recomputed here from b and c so results produced by earlier code versions
+    (which used the chi-square approximation at >= 25 discordant pairs) are
+    reported with the same test as every other arm.
+    """
+    n = b + c
+    if n == 0:
+        return 1.0
+    k = min(b, c)
+    tail = sum(math.comb(n, i) for i in range(k + 1)) / 2**n
+    return min(1.0, 2 * tail)
 
 
 def _difficulty_and_card_breakdown(pred_path: Path) -> str:
@@ -74,14 +90,14 @@ def build_report(results_dir: Path) -> str:
             ("accuracy difference", a1.get("accuracy_difference")),
             ("profiles fixed by grounding (b)", a1["b_grounded_fixes"]),
             ("profiles broken by grounding (c)", a1["c_grounded_breaks"]),
-            ("McNemar p-value", a1["mcnemar_pvalue"]),
-            ("McNemar exact binomial", a1.get("mcnemar_exact_binomial")),
+            ("McNemar p-value (exact binomial)", f"{exact_mcnemar_p(a1['b_grounded_fixes'], a1['c_grounded_breaks']):.3g}"),
             ("relative error reduction", a1["relative_error_reduction_vs_ungrounded"]),
             ("grounded cards returned", a1["grounded_cards_returned_rate"]),
             ("ungrounded cards returned", a1["ungrounded_cards_returned_rate"]),
             ("grounded card accuracy (returned cards)", a1.get("grounded_card_accuracy_on_returned")),
             ("ungrounded card accuracy (returned cards)", a1.get("ungrounded_card_accuracy_on_returned")),
             ("ungrounded replies kept despite card-name mismatch", a1.get("ungrounded_name_recoveries")),
+            ("grounded decisions flagged needs-review (guard)", a1.get("grounded_needs_review_decisions")),
             ("meets 0.90 stretch target", a1["meets_stretch_target"]),
             ("verdict", a1["verdict"]),
         ]))
@@ -103,18 +119,18 @@ def build_report(results_dir: Path) -> str:
     a7 = res("A7")
     if a7:
         lines.append(f"## A7: LLM decides vs LLM extracts + code compares (n={a7['n_profiles']})\n")
-        lines.append("| arm | profile accuracy | 95% CI | cards returned | card accuracy (returned) |\n|---|---|---|---|---|")
+        lines.append("| arm | profile accuracy | 95% CI | cards returned | card accuracy (returned) | needs review |\n|---|---|---|---|---|---|")
         for key, label in (("llm_decides", "LLM decides (14 Oct design)"), ("extract_compare", "extract + compare (grounded)"),
                            ("extract_compare_ungrounded", "extract + compare (ungrounded)")):
             r = a7[key]
             lines.append(f"| {label} | {r['profile_accuracy']:.3f} | {r['profile_accuracy_ci95']} | "
-                         f"{r['cards_returned_rate']:.3f} | {r['card_accuracy_on_returned']:.3f} |")
+                         f"{r['cards_returned_rate']:.3f} | {r['card_accuracy_on_returned']:.3f} | {r.get('needs_review_decisions', '-')} |")
         lines.append("")
         for key, label in (("llm_vs_extract_compare_mcnemar", "extract+compare vs LLM decides"),
                            ("extract_compare_grounded_vs_ungrounded_mcnemar", "extract+compare grounded vs ungrounded")):
             r = a7[key]
             lines.append(f"- McNemar, {label}: b={r['b_grounded_fixes']} (first arm right only), "
-                         f"c={r['c_grounded_breaks']} (second arm right only), p={r['mcnemar_pvalue']:.4g}")
+                         f"c={r['c_grounded_breaks']} (second arm right only), exact p={exact_mcnemar_p(r['b_grounded_fixes'], r['c_grounded_breaks']):.3g}")
         for key, label in (("extraction_grounded", "grounded (reads the documents)"),
                            ("extraction_ungrounded", "ungrounded (from memory = threshold hallucination)")):
             r = a7[key]

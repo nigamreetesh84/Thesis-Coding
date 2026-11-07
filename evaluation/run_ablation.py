@@ -164,6 +164,7 @@ def run_arm(
                 actual_map[k] == expected_map[k] for k in returned
             )
             stats["name_recoveries"] = stats.get("name_recoveries", 0) + getattr(recommender, "last_name_recoveries", 0)
+            stats["needs_review"] = stats.get("needs_review", 0) + sum(d.needs_review for d in decisions)
         if collect is not None:
             collect.append(
                 {
@@ -175,6 +176,7 @@ def run_arm(
                     "actual": {f"{d.bank}|{d.card}": d.recommended for d in decisions},
                     "reasons": {f"{d.bank}|{d.card}": d.reason for d in decisions},
                     "cited": {f"{d.bank}|{d.card}": d.cited_chunk_id for d in decisions},
+                    "needs_review": [f"{d.bank}|{d.card}" for d in decisions if d.needs_review],
                     "requirements": {
                         f"{r.bank}|{r.card}": r.as_dict() for r in getattr(recommender, "last_requirements", [])
                     },
@@ -192,7 +194,9 @@ def mcnemar_report(grounded_correct: list[bool], ungrounded_correct: list[bool])
 
     table = [[both_correct, b], [c, both_wrong]]
     discordant = b + c
-    result = mcnemar(table, exact=discordant < 25)
+    # Always the exact binomial test: with c = 0 and small samples the chi-square
+    # approximation is not appropriate, and one test for every arm keeps results comparable.
+    result = mcnemar(table, exact=True)
 
     grounded_acc = sum(grounded_correct) / len(grounded_correct)
     ungrounded_acc = sum(ungrounded_correct) / len(ungrounded_correct)
@@ -219,7 +223,7 @@ def mcnemar_report(grounded_correct: list[bool], ungrounded_correct: list[bool])
         "b_grounded_fixes": b,
         "c_grounded_breaks": c,
         "discordant_pairs": discordant,
-        "mcnemar_exact_binomial": discordant < 25,
+        "mcnemar_exact_binomial": True,
         "mcnemar_statistic": float(result.statistic),
         "mcnemar_pvalue": float(result.pvalue),
         "accuracy_difference": grounded_acc - ungrounded_acc,
@@ -275,6 +279,7 @@ def a1_grounded_vs_ungrounded(
             st["cards_correct_of_returned"] / st["cards_returned"] if st.get("cards_returned") else 0.0
         )
         report[f"{name}_name_recoveries"] = st.get("name_recoveries", 0)
+        report[f"{name}_needs_review_decisions"] = st.get("needs_review", 0)
     return report
 
 
@@ -572,6 +577,7 @@ def a7_decision_modes(
             "profile_accuracy_ci95": [round(lo, 3), round(hi, 3)],
             "cards_returned_rate": st["cards_returned"] / st["cards_expected"] if st.get("cards_expected") else 0.0,
             "card_accuracy_on_returned": st["cards_correct_of_returned"] / st["cards_returned"] if st.get("cards_returned") else 0.0,
+            "needs_review_decisions": st.get("needs_review", 0),
         }
 
     return {

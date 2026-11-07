@@ -257,3 +257,85 @@ def test_python_style_literals_are_read_but_strings_untouched() -> None:
     items = extract_json_items(raw)
     assert items[0]["requirements"]["existing_relationship_required"] is False
     assert items[0]["sources"] is None and items[0]["note"] == "None of the True rules"
+
+
+def test_exact_mcnemar_p_matches_binomial() -> None:
+    from evaluation.make_report import exact_mcnemar_p
+
+    assert exact_mcnemar_p(16, 0) == 2 / 2**16
+    assert abs(exact_mcnemar_p(9, 0) - 0.00390625) < 1e-12
+    assert exact_mcnemar_p(0, 0) == 1.0 and exact_mcnemar_p(3, 3) == 1.0
+
+
+# ---------------------------------------------------------------- fail-closed guard
+
+
+def test_guard_refuses_to_recommend_when_a_stated_threshold_was_not_read() -> None:
+    """Without the guard a missed income rule means 'no income requirement' -> false recommendation."""
+    from src.domain.requirements import decide_guarded, stated_criteria
+
+    profile = UserProfile(annual_income=400000, age=30, cibil=780, employment="salaried",
+                          existing_relationship=False, banks=["HDFC"])
+    missed_income = CardRequirements("HDFC", "HDFC Regalia", None, 21, 750, ("salaried", "self-employed"), None,
+                                     sources={"age": "hdfc_cards#7"})
+    stated = stated_criteria([c["text"] for c in _chunks()])
+    assert stated >= {"income", "age", "cibil", "employment"}
+    assert decide(profile, missed_income).recommended is True  # the unguarded failure mode
+    guarded = decide_guarded(profile, missed_income, stated)
+    assert guarded.recommended is False and guarded.needs_review is True
+    assert "income requirement stated in the rules could not be read" in guarded.reason
+
+
+def test_guard_rejects_implausible_values_but_passes_good_ones() -> None:
+    from src.domain.requirements import decide_guarded
+
+    profile = UserProfile(annual_income=1_300_000, age=30, cibil=780, employment="salaried",
+                          existing_relationship=False, banks=["HDFC"])
+    stated = {"income", "age", "cibil"}
+    lakh_slip = CardRequirements("HDFC", "HDFC Regalia", 12, 21, 750)  # "12" lakh read as Rs 12
+    assert decide_guarded(profile, lakh_slip, stated).needs_review is True
+    good = CardRequirements("HDFC", "HDFC Regalia", 1_200_000, 21, 750)
+    d = decide_guarded(profile, good, stated)
+    assert d.recommended is True and d.needs_review is False
+
+
+def test_guard_does_not_fire_on_legitimately_null_relationship_or_employment() -> None:
+    from src.domain.requirements import decide_guarded
+
+    profile = UserProfile(annual_income=500000, age=25, cibil=720, employment="business owner",
+                          existing_relationship=False, banks=["HDFC"])
+    req = CardRequirements("HDFC", "HDFC MoneyBack+", 250000, 18, 650, None, None)
+    d = decide_guarded(profile, req, {"income", "age", "cibil", "employment", "relationship"})
+    assert d.recommended is True and not d.needs_review
+
+
+def test_recommender_applies_guard_and_it_can_be_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    reply = json.dumps([{"bank": "HDFC", "card": "HDFC Regalia", "requirements": {
+        "min_annual_income_inr": None, "min_age": 21, "min_cibil": 750,
+        "allowed_employment": ["salaried", "self-employed"], "existing_relationship_required": None}, "sources": {}}])
+
+    class _R:
+        def retrieve_for_profile(self, p: UserProfile) -> list[dict[str, str]]:
+            return _chunks()
+
+    profile = UserProfile(annual_income=400000, age=30, cibil=780, employment="salaried",
+                          existing_relationship=False, banks=["HDFC"])
+    guarded = RAGRecommender(_R(), _FixedLLM(reply), decision_mode="extract_compare")  # type: ignore[arg-type]
+    assert guarded.recommend(profile)[0][0].needs_review is True
+    monkeypatch.setenv("RAG_GUARD", "0")
+    unguarded = RAGRecommender(_R(), _FixedLLM(reply), decision_mode="extract_compare")  # type: ignore[arg-type]
+    assert unguarded.recommend(profile)[0][0].recommended is True
+
+
+def test_hard_rule_documents_keep_the_same_cards_and_sections() -> None:
+    """A8 changes only the wording, so the gold labels (from the table) stay valid."""
+    from pathlib import Path
+
+    from src.pipeline import RuleChunker
+
+    banks = {"sbi_cards.md": "SBI", "hdfc_cards.md": "HDFC"}
+
+    def outline(folder: str) -> list[tuple[str, str, str]]:
+        return [(c.bank, c.card, c.text.splitlines()[0]) for c in RuleChunker(banks).chunk_directory(Path(folder))]
+
+    assert outline("data/rule_docs_hard") == outline("data/rule_docs")

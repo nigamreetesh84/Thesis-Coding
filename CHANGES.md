@@ -87,3 +87,19 @@ Parser and name-recovery changes do not alter prompts, so re-running A1 on test/
 * **Ungrounded arm's missing cards explained:** 90 of 320 ungrounded per-card replies contain a reason but NO `recommended` field (230/320 = the 0.719 cards-returned rate). This is the model declining to commit without documents, not a parsing failure; it stays scored as "no answer" and is reported alongside card accuracy on answered cards (0.652).
 * `src/model.py`: `_loads_lenient` also accepts Python-style `True`/`False`/`None` outside strings (the ungrounded MoneyBack+ extraction used `False`). Every cached reply now parses. Ungrounded extraction accuracy with that card included: 10/40 fields (0.25).
 * 1 regression test (65 total).
+
+### Round 5.3 (6 Nov 2026, after the 5.2 re-scoring run)
+* **Reproducibility finding.** The 5.2 run replayed the 14 Oct cached generations exactly (320/320 reasons, 40/40 verdicts). The 6 Nov round-5 run had regenerated them instead; those fresh greedy generations differed in 131/320 reasons and 2/40 profile verdicts (LLM-decides test accuracy 0.425 vs 0.400; holdout 0.400 vs 0.375). Batched 4-bit generation on a GPU is not bit-reproducible; `llm_cache.jsonl` is the reproducibility record and must be archived with the code. The extract_compare verdicts were identical in every run.
+* `evaluation/run_ablation.py`: McNemar always uses the exact binomial test (previously chi-square at >= 25 discordant pairs, which mixed two tests across arms).
+* `evaluation/make_report.py`: reports the exact p-value recomputed from b and c, so results from earlier runs are reported with the same test without re-running.
+* 1 regression test (66 total).
+
+### Round 5.4 (6 Nov 2026): fail-closed guard and A8 harder documents
+| File | Change | Why |
+|---|---|---|
+| `src/domain/requirements.py`, `src/model.py` | Fail-closed guard (`decide_guarded`, default on, `RAG_GUARD=0` disables): if the retrieved rules state an income/age/CIBIL requirement that the model did not read, or a value read is implausible, the card is NOT recommended and is flagged `needs_review` with "check the bank's criteria before applying" | A missed threshold was read as "no requirement", turning a reading error into a false recommendation (the costliest error for an applicant: a rejection and a hard CIBIL enquiry). Replayed over all 1,280 saved extract_compare decisions: fired 0 times, changed 0 verdicts |
+| `src/domain/entities.py`, `src/api.py` | `Decision.needs_review` / `DecisionOut.needs_review` (default False) | Expose the flag to the API and evaluation |
+| `evaluation/run_ablation.py`, `evaluation/make_report.py` | Count and report needs-review decisions | |
+| `data/rule_docs_hard/` (new, DRAFT for review) | A8: same cards, sections and thresholds, harder wording: monthly income, numbers in words, superseded old thresholds, other cards' thresholds mentioned, negated conditions, fee/spend figures that are not conditions | The 40/40 extraction was measured on one clean, self-authored document set (second-marker point S5) |
+| `data/A8_HARD_DOCS_NOTES.md` | Trap-by-trap answer key (not indexed) | |
+| `tests/test_robustness.py` | 5 tests (71 total) | Guard failure modes; hard documents keep the same structure |

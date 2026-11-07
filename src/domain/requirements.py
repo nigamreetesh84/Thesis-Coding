@@ -302,3 +302,74 @@ def decide(profile: UserProfile, req: CardRequirements) -> Decision:
         )
         cited = req.sources.get("income") or req.sources.get("default") or next(iter(req.sources.values()), None)
     return Decision(bank=req.bank, card=req.card, recommended=not failed, reason=reason, cited_chunk_id=cited)
+
+
+# ---------------------------------------------------------------------------
+# Fail-closed guard
+# ---------------------------------------------------------------------------
+# A threshold the model failed to read is treated as "not required" by
+# check_requirements, which would turn a reading error into a false
+# recommendation: the costliest error for an applicant (a rejected
+# application and a hard CIBIL enquiry). The guard below catches the two
+# detectable forms of a reading error and refuses to recommend instead.
+
+# Numeric criteria for which null is never a legitimate reading when the
+# retrieved rules state the criterion (employment "any" and relationship
+# "not required" may legitimately come back as null, so they are not guarded).
+GUARDED_CRITERIA = ("income", "age", "cibil")
+
+PLAUSIBLE_RANGES: dict[str, tuple[float, float]] = {
+    "income": (10_000, 100_000_000),  # Rs 10 thousand to Rs 10 crore a year
+    "age": (16, 80),
+    "cibil": (300, 900),
+}
+
+_CRITERION_HEADING_WORDS: dict[str, tuple[str, ...]] = {
+    "income": ("income",),
+    "age": ("age",),
+    "cibil": ("credit score", "credit history", "cibil", "bureau score"),
+    "employment": ("employment",),
+    "relationship": ("relationship",),
+}
+
+
+def stated_criteria(chunk_texts: list[str]) -> set[str]:
+    """Criteria the retrieved rule chunks state, read from their headings."""
+    stated: set[str] = set()
+    for text in chunk_texts:
+        heading = text.strip().splitlines()[0].lower() if text.strip() else ""
+        stated |= {c for c, words in _CRITERION_HEADING_WORDS.items() if any(w in heading for w in words)}
+    return stated
+
+
+def guard_problems(req: CardRequirements, stated: set[str]) -> list[str]:
+    """Reasons the extracted requirements cannot be trusted (empty list = usable)."""
+    values = {"income": req.min_income, "age": req.min_age, "cibil": req.min_cibil}
+    problems: list[str] = []
+    for criterion in GUARDED_CRITERIA:
+        value = values[criterion]
+        if value is None:
+            if criterion in stated:
+                problems.append(f"the {criterion} requirement stated in the rules could not be read")
+            continue
+        low, high = PLAUSIBLE_RANGES[criterion]
+        if not low <= float(value) <= high:
+            problems.append(f"the {criterion} requirement read from the rules ({value:g}) is implausible")
+    return problems
+
+
+def decide_guarded(profile: UserProfile, req: CardRequirements, stated: set[str]) -> Decision:
+    """decide() with the fail-closed guard applied first."""
+    problems = guard_problems(req, stated)
+    if not problems:
+        return decide(profile, req)
+    cited = next(iter(req.sources.values()), None)
+    return Decision(
+        bank=req.bank,
+        card=req.card,
+        recommended=False,
+        reason="Eligibility could not be confirmed because " + "; ".join(problems)
+        + ". Please check the bank's published criteria before applying.",
+        cited_chunk_id=cited,
+        needs_review=True,
+    )
