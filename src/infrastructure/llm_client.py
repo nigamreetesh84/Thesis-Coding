@@ -19,8 +19,11 @@ from typing import Any, ClassVar, Protocol
 
 from src.domain.eligibility import DEFAULT_ELIGIBILITY_TABLE_PATH, EligibilityOracle
 from src.domain.entities import UserProfile
+from src.domain.query_parsing import rule_based_fields
 from src.prompts import (
+    ANSWER_WRITER_TASK_MARKER,
     EXTRACTION_TASK_MARKER,
+    QUERY_PARSE_TASK_MARKER,
     UNGROUNDED_EXTRACTION_SYSTEM_PROMPT,
     UNGROUNDED_SYSTEM_PROMPT,
 )
@@ -311,6 +314,13 @@ class StubLLM:
         self._oracle = EligibilityOracle(table_path)
 
     def generate(self, prompt: str) -> str:
+        # Natural-language interface prompts (src/nl_interface.py). Checked first;
+        # they never contain the markers below, so existing behaviour is unchanged.
+        if QUERY_PARSE_TASK_MARKER in prompt:
+            message = prompt.split("### APPLICANT MESSAGE\n", 1)[-1].split(f"\n\n{QUERY_PARSE_TASK_MARKER}", 1)[0]
+            return json.dumps(rule_based_fields(message))
+        if ANSWER_WRITER_TASK_MARKER in prompt:
+            return "{}"  # no phrasing without a real LLM: the engine's reasons are shown
         if EXTRACTION_TASK_MARKER in prompt:
             return self._extract(prompt)
         try:

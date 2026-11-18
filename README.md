@@ -30,6 +30,7 @@ Open `dashboard/index.html` in a browser. It calls the live API by default. Appe
 
 ## API
 
+- `POST /ask` accepts `message` (and `previous`, the `understood` object of the last reply, when answering a follow-up question); it returns `status` (`ok` or `need_more_info`), `understood`, `questions`, `answer_text` and per-card `cards`.
 - `POST /recommend` accepts `annual_income`, `age`, `cibil`, `employment`, `existing_relationship`, and `banks`; it returns decisions, `latency_ms`, and `retrieved_k`.
 - `GET /status` reports service status and configuration.
 - `GET /telemetry` reports request count and latency percentiles.
@@ -64,6 +65,24 @@ Run the offline faithfulness and judge-validation script with:
 
 ```powershell
 python -m evaluation.ragas_faithfulness
+```
+
+## Natural-Language Interface (round 6)
+
+`POST /ask` accepts a plain-language message ("I'm 32, salaried, 9 lakh a year, CIBIL 760, I have an SBI account, want a travel card"):
+
+1. **Parse** (`QueryParser`, LLM): the model copies the facts it finds, with the income phrase verbatim; `src/domain/query_parsing.py` converts lakh / crore / monthly / LPA to annual rupees. A missing or implausible field produces a follow-up question, never a guess.
+2. **Rank** (`CardRanker`): the existing FAISS index of rule chunks ranks the cards by what the applicant asked for. Every card of the requested banks is still decided.
+3. **Decide**: the frozen `extract_compare` recommender, unchanged.
+4. **Explain** (`AnswerWriter`, LLM): one sentence per card. `src/domain/answer_guard.py` rejects a sentence with a wrong verdict or an unsupported number and shows the engine's reason instead.
+
+The dashboard has a "Describe yourself in plain language" box that calls `/ask`.
+
+Evaluate the new layer (Colab, same environment variables as the A8 notebook):
+
+```bash
+python -m evaluation.run_nl_eval --split holdout --out-dir $OUT/nl_holdout
+python -m evaluation.run_nl_eval --split holdout --use-stub-llm --out-dir /tmp/nl   # GPU-free smoke test
 ```
 
 ## Research Questions
