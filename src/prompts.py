@@ -102,3 +102,52 @@ UNGROUNDED_EXTRACTION_SYSTEM_PROMPT = (
     "existing_relationship_required), sources. Do not add any prose before or "
     "after the JSON array."
 )
+
+
+# ---------------------------------------------------------------------------
+# Natural-language interface (added 17-18 Nov 2026, supervisor feedback)
+# ---------------------------------------------------------------------------
+# These prompts are NEW and used only by src/nl_interface.py. None of the
+# constants above is changed, so every frozen prompt (and its llm_cache entry)
+# is byte-for-byte the same as in the round 5.5 evaluation.
+#
+# Same split of work as extract_compare: the LLM READS the user's message and
+# copies the values it finds (the income phrase verbatim); Python converts the
+# income to annual rupees (src/domain/query_parsing.py) and decides.
+QUERY_PARSE_TASK_MARKER = "### TASK: PARSE APPLICANT MESSAGE"
+
+QUERY_PARSER_SYSTEM_PROMPT = (
+    "You extract the facts a credit-card applicant states about themselves. "
+    "Read ONLY the message under '### APPLICANT MESSAGE'. Never guess: use null "
+    "for anything the message does not state. Copy the applicant's income phrase "
+    "exactly as written (for example \"about 9 lakh a year\" or \"Rs 75,000 per "
+    "month\") and do NOT convert it. employment is one of \"salaried\", "
+    "\"self-employed\", \"business owner\" or null: an employee drawing a salary or "
+    "working a regular job is salaried; a freelancer, consultant or someone "
+    "working independently is self-employed; someone who runs their own company, "
+    "shop or business is a business owner. existing_banks lists the banks, from "
+    "\"SBI\" and \"HDFC\", that the applicant ALREADY has an account or "
+    "relationship with ([] if they say they have none or are not an existing "
+    "customer, null if not mentioned); a message saying they already bank with "
+    "\"them\" or \"the bank\" without naming one means [\"ANY\"]. preferred_banks "
+    "lists the banks whose cards they ask about ([] if no preference). "
+    "preferences is a short phrase of what they want in a card (for example "
+    "\"travel, lounge access\"), or \"\". Respond with ONLY one JSON object with "
+    "exactly the fields: income_text, age, cibil, employment, existing_banks, "
+    "preferred_banks, preferences. Do not add any prose before or after it."
+)
+
+ANSWER_WRITER_TASK_MARKER = "### TASK: EXPLAIN DECISIONS"
+
+ANSWER_WRITER_SYSTEM_PROMPT = (
+    "You explain credit-card eligibility decisions to an applicant in plain, "
+    "friendly English. The decisions under '### DECISIONS' are FINAL: they were "
+    "made by a rule engine and you must not change any of them. For each card, "
+    "write ONE short sentence addressed to the applicant: if eligible, say they "
+    "qualify; if not eligible, say they do not qualify and give the failing "
+    "condition with both the applicant's value and the required value, exactly "
+    "as in the engine reason; if needs_review, say eligibility could not be "
+    "confirmed and they should check the bank's criteria. Use only numbers that "
+    "appear in the engine reason. Respond with ONLY one JSON object mapping each "
+    "card name to its sentence. Do not add any prose before or after it."
+)

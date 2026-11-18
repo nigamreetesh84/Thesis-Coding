@@ -45,11 +45,31 @@
     .card p { margin: 0.25rem 0; font-size: 0.85rem; color: #d3d6db; }
     .card .chunk { font-size: 0.75rem; color: #9aa0a6; }
     #error { color: #ff8787; margin-top: 0.75rem; }
+    .ask { background: #171923; border: 1px solid #2a2d3a; border-radius: 10px; padding: 1.25rem; margin-bottom: 1.25rem; }
+    .ask textarea {
+      width: 100%; box-sizing: border-box; min-height: 70px; background: #0f1117; color: #e6e6e6;
+      border: 1px solid #2a2d3a; border-radius: 6px; padding: 0.6rem; font: inherit;
+    }
+    .ask button { margin-top: 0.6rem; width: 100%; }
+    .ask .understood { font-size: 0.8rem; color: #9aa0a6; margin-top: 0.6rem; }
+    .ask .questions { color: #ffd43b; margin-top: 0.6rem; font-size: 0.9rem; }
+    .card.needs-review { background: #3d3410; border-color: #f59f00; }
+    .card.needs-review .badge { background: #f59f00; }
+    .or { text-align: center; color: #9aa0a6; font-size: 0.8rem; margin: 0.5rem 0 1rem; }
   </style>
 </head>
 <body>
   <h1>Eligibility-Aware Credit Card Recommender</h1>
   <p class="subtitle">Retrieval-augmented, explainable, multi-bank recommendation dashboard.</p>
+
+  <div class="ask">
+    <label for="nl-message">Describe yourself in plain language</label>
+    <textarea id="nl-message" placeholder="e.g. I'm 32, salaried, earning 9 lakh a year, CIBIL 760, and I already have an SBI savings account. I want a travel card."></textarea>
+    <button type="button" id="nl-send">Ask</button>
+    <div class="questions" id="nl-questions"></div>
+    <div class="understood" id="nl-understood"></div>
+  </div>
+  <div class="or">or enter the profile fields directly</div>
 
   <form id="profile-form">
     <label>Annual income (INR)
@@ -190,9 +210,10 @@
       container.innerHTML = "";
       for (const decision of data.decisions) {
         const card = document.createElement("div");
-        card.className = "card " + (decision.recommended ? "recommended" : "not-eligible");
+        const review = decision.needs_review === true;
+        card.className = "card " + (review ? "needs-review" : (decision.recommended ? "recommended" : "not-eligible"));
         card.innerHTML = `
-          <span class="badge">${decision.recommended ? "RECOMMENDED" : "NOT ELIGIBLE"}</span>
+          <span class="badge">${review ? "CHECK WITH BANK" : (decision.recommended ? "RECOMMENDED" : "NOT ELIGIBLE")}</span>
           <h3>${decision.bank} — ${decision.card}</h3>
           <p>${decision.reason}</p>
           <p class="chunk">cited chunk: ${decision.cited_chunk_id ?? "n/a"}</p>
@@ -200,6 +221,50 @@
         container.appendChild(card);
       }
     }
+
+    // ---- natural-language interface (POST /ask) ----------------------------
+    let nlPrevious = null;  // what was understood so far, while a follow-up is pending
+    document.getElementById("nl-send").addEventListener("click", async () => {
+      const message = document.getElementById("nl-message").value.trim();
+      if (!message) return;
+      document.getElementById("error").textContent = "";
+      try {
+        const res = await fetch(`${API_BASE}/ask`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message, previous: nlPrevious }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const u = data.understood;
+        const fmt = (v) => (v === null || v === undefined ? "?" : v);
+        document.getElementById("nl-understood").textContent =
+          `Understood: income ₹${u.income ? Math.round(u.income).toLocaleString("en-IN") : "?"} a year` +
+          ` (from "${fmt(u.income_text)}"), age ${fmt(u.age)}, CIBIL ${fmt(u.cibil)}, ${fmt(u.employment)},` +
+          ` existing bank relationship: ${u.existing_relationship === null ? "?" : (u.existing_relationship ? "yes" : "no")}` +
+          (u.preferences ? `, wants: ${u.preferences}` : "");
+        const q = document.getElementById("nl-questions");
+        if (data.status === "need_more_info") {
+          nlPrevious = u;
+          q.innerHTML = data.questions.map((x) => `• ${x}`).join("<br>");
+          document.getElementById("nl-message").value = "";
+          return;
+        }
+        nlPrevious = null;
+        q.textContent = "";
+        renderResult({
+          latency_ms: data.latency_ms,
+          retrieved_k: "-",
+          decisions: data.cards.map((c) => ({
+            bank: c.bank, card: c.card, recommended: c.recommended, needs_review: c.needs_review,
+            reason: c.sentence, cited_chunk_id: c.cited_chunk_id,
+          })),
+        });
+        refreshTelemetry();
+      } catch (err) {
+        document.getElementById("error").textContent = "Ask failed: " + err.message;
+      }
+    });
 
     refreshTelemetry();
   </script>

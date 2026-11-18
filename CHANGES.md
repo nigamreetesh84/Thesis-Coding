@@ -109,3 +109,19 @@ Parser and name-recovery changes do not alter prompts, so re-running A1 on test/
 * `src/domain/requirements.py`: a source given as several ids ("sbi_cards#7,sbi_cards#8") or a list keeps the first id. Re-scoring the saved A8 extractions: 0/320 verdicts changed; citation validity 287/320 -> 320/320; declines citing the failing rule 217/248 -> 248/248.
 * Caveat for the write-up: the hard documents add traps AND remove all 9 hedge words of the original set ("about", "roughly", "generally", ...). The LLM-decides gain (0.375 -> 0.600) cannot be attributed to either change alone.
 * 1 regression test (72 total). No further design changes: every gold profile has now been evaluated.
+
+### Round 6 (18 Nov 2026): natural-language interface (supervisor feedback, 17 Nov)
+Feedback: "after the vector index ... user requirement in natural language -> LLM -> vector database -> comparison engine".
+The decision path (retrieval, extraction, deterministic comparison, fail-closed guard) is NOT changed; no frozen prompt changed (only new constants appended to `src/prompts.py`), so every llm_cache entry and every round 5.5 number stands. The new ends are evaluated separately.
+
+| File | Change | Why |
+|---|---|---|
+| `src/domain/query_parsing.py` (new) | `normalise_income` (lakh / crore / k / per month / LPA -> annual rupees), `ParsedQuery` (missing fields -> follow-up questions), `rule_based_fields` (regex baseline) | The LLM copies the income phrase; Python converts units (the 14 Oct errors were rupee/lakh confusion when the LLM handled numbers) |
+| `src/domain/answer_guard.py` (new) | Rejects a writer sentence with a wrong verdict or a number not in the engine's reason | The answer writer may phrase, never decide |
+| `src/nl_interface.py` (new) | `QueryParser` (LLM #1), `CardRanker` (existing FAISS index ranks cards by stated preferences; never hides a card), `AnswerWriter` (LLM #2 + guard, falls back to the engine's reason), `NLRecommender` (extract_compare only) | Supervisor's flow |
+| `src/prompts.py` | Appended `QUERY_PARSER_SYSTEM_PROMPT`, `ANSWER_WRITER_SYSTEM_PROMPT` and their task markers | New prompts only |
+| `src/infrastructure/llm_client.py` | `StubLLM` answers the two new markers (regex parse; empty writer reply) before any existing branch | GPU-free tests and demo; existing paths unchanged |
+| `src/api.py` | `POST /ask` {message, previous} -> status, understood fields, follow-up questions, answer text, per-card sentences | Stateless follow-up: the client sends back what was understood |
+| `dashboard/index.html` | "Describe yourself in plain language" panel calling `/ask`; amber "check with bank" card for needs_review | Demo / video |
+| `evaluation/run_nl_eval.py` (new) | Parser field accuracy (LLM vs regex baseline), end-to-end profile accuracy from free text, follow-up rate, writer guard acceptance, verdict agreement; two message sets (gold profile_text; generated first-person messages in rupees / lakh / monthly / LPA) | Chapter 4 table for the new layer |
+| `tests/test_nl_interface.py` (new) | 28 tests (100 total) | |
