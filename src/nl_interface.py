@@ -22,12 +22,12 @@ they are evaluated separately by evaluation/run_nl_eval.py.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from src.domain.answer_guard import check_sentence
 from src.domain.entities import Decision, UserProfile
-from src.domain.query_parsing import ParsedQuery
+from src.domain.query_parsing import ParsedQuery, short_yes_no
 from src.infrastructure.llm_client import LLMClient
 from src.model import RAGRecommender, _same_card, extract_json_items
 from src.prompts import (
@@ -200,6 +200,11 @@ class NLRecommender:
     def ask(self, message: str, previous: ParsedQuery | None = None) -> NLResult:
         parsed = self.parser.parse(message)
         if previous is not None:
+            # A bare "yes" / "no" answers the relationship question when it is the one asked
+            if previous.missing == ["existing_relationship"] and parsed.existing_relationship is None:
+                answer = short_yes_no(message)
+                if answer is not None:
+                    parsed = replace(parsed, existing_relationship=answer)
             parsed = previous.merged_with(parsed)
         if parsed.missing:
             return NLResult(status="need_more_info", understood=parsed, questions=parsed.follow_up_questions())
