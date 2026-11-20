@@ -7,6 +7,7 @@ the LLM's grounded output and the HTTP response -- see src/model.py.
 """
 from __future__ import annotations
 
+from fastapi.responses import FileResponse
 import time
 from collections import deque
 from collections.abc import AsyncIterator
@@ -141,6 +142,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="Eligibility-Aware Credit Card Recommender", lifespan=lifespan)
 
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -149,6 +152,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/", include_in_schema=False)
+def dashboard() -> FileResponse:
+    """Serve the dashboard from the API, so http://<host>:8000/ opens it."""
+    return FileResponse("dashboard/index.html")
 
 @app.post("/recommend", response_model=RecommendOut)
 def recommend(profile_in: ProfileIn) -> RecommendOut:

@@ -200,3 +200,26 @@ def test_nl_eval_smoke() -> None:
     assert res["gold_text"]["llm_parser"]["fields_correct"]["n"] == 40
     assert res["user_style"]["answer_writer"]["final_answer_matches_engine_verdict"]["rate"] == 1.0
     assert len(out["rows"]) == 16
+
+
+@pytest.mark.parametrize(
+    ("message", "expected"),
+    [
+        ("I already have an SBI savings account.", True),
+        ("I have a salary account with HDFC.", True),
+        ("I'm already a customer of SBI.", True),
+        ("I bank with HDFC.", True),
+        ("I don't have any account with SBI or HDFC.", False),
+        ("I'm new to both banks.", False),
+        ("I'm 30 and salaried.", None),
+    ],
+)
+def test_regex_baseline_reads_bank_relationship(message: str, expected: bool | None) -> None:
+    assert ParsedQuery.from_llm_dict(rule_based_fields(message)).existing_relationship is expected
+
+
+def test_short_yes_answers_the_relationship_question(nl: NLRecommender) -> None:
+    first = nl.ask("I'm 32, salaried, earning 9 lakh a year, CIBIL 760.")
+    assert first.status == "need_more_info" and first.understood.missing == ["existing_relationship"]
+    assert nl.ask("yes", previous=first.understood).understood.existing_relationship is True
+    assert nl.ask("No.", previous=first.understood).understood.existing_relationship is False

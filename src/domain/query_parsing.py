@@ -258,15 +258,29 @@ _INCOME_PHRASE_RE = re.compile(
 )
 _INCOME_CONTEXT_RE = re.compile(r"(income|earn|salary|make|making|drawing|ctc|package)[^.\d₹]{0,40}", re.IGNORECASE)
 _HAS_REL_RE = re.compile(
-    r"(already (?:hold|holds|have|has) an account|already banks? with|existing customer(?! of no)|"
-    r"(?:have|hold) an? (?:savings|salary|current)? ?account with|banked with)",
+    r"(already (?:hold|holds|have|has|bank|banks)\b|already a customer|existing customer(?! of no)|"
+    r"(?:have|hold|has|holds) an? (?:\w+ ){0,2}account|banked with|bank with (?:sbi|hdfc)|"
+    r"(?:sbi|hdfc) (?:savings|salary|current|bank)? ?account|customer of (?:sbi|hdfc))",
     re.IGNORECASE,
 )
 _NO_REL_RE = re.compile(
     r"(does not currently hold|do not (?:have|hold)|don't (?:have|hold)|not an existing customer|no (?:existing )?"
-    r"(?:account|relationship)|new to (?:both|the bank))",
+    r"(?:account|relationship|bank account)|new to (?:both|the bank|sbi|hdfc)|not a customer)",
     re.IGNORECASE,
 )
+
+
+_YES_RE = re.compile(r"^\s*(yes|yeah|yep|yup|y|i do|sure|correct)\b", re.IGNORECASE)
+_NO_RE = re.compile(r"^\s*(no|nope|nah|n|i don't|i do not|none)\b", re.IGNORECASE)
+
+
+def short_yes_no(message: str) -> bool | None:
+    """'yes' / 'no' (and close variants) at the start of a reply, else None."""
+    if _NO_RE.search(message):
+        return False
+    if _YES_RE.search(message):
+        return True
+    return None
 
 
 def rule_based_fields(message: str) -> dict[str, Any]:
@@ -300,7 +314,7 @@ def rule_based_fields(message: str) -> dict[str, Any]:
     if _NO_REL_RE.search(text):
         existing: list[str] | None = []
     elif _HAS_REL_RE.search(text):
-        named = [b for b in KNOWN_BANKS if re.search(rf"(?:with|at)\s+(?:both\s+)?(?:\w+\s+)?{b}", text)]
+        named = [b for b in KNOWN_BANKS if re.search(rf"\b{b}\b", text)]
         existing = named or ["ANY"]
     else:
         existing = None
