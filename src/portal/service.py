@@ -140,7 +140,8 @@ class PortalService:
     def _result(self, result: NLResult, actor: str) -> dict[str, Any]:
         u = result.understood
         understood = {"income": u.income, "age": u.age, "cibil": u.cibil, "employment": u.employment,
-                      "existing_relationship": u.existing_relationship, "existing_banks": list(u.existing_banks or []),
+                      "existing_relationship": u.existing_relationship,
+                      "existing_banks": list(self.recommender.existing_banks or u.existing_banks or []),
                       "banks": list(u.banks), "preferences": u.preferences, "income_text": u.income_text}
         cards = [{"bank": a.bank, "bank_name": BANK_DISPLAY.get(a.bank.upper(), a.bank), "card": a.card,
                   "recommended": a.recommended, "needs_review": a.needs_review, "sentence": a.sentence,

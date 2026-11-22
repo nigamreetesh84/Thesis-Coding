@@ -25,7 +25,7 @@
   table { width:100%; border-collapse:collapse; font-size:.83rem; }
   th, td { text-align:left; padding:.4rem .45rem; border-bottom:1px solid var(--line); vertical-align:top; }
   th { color:var(--muted); font-weight:600; }
-  td input[type=number], td input[type=text] { width:100%; }
+  td input[type=number], td input[type=text] { width:100%; min-width:86px; }
   .warn { color:var(--amber); font-size:.78rem; } .err { color:#ff8787; margin-top:.5rem; } .good { color:#69db7c; }
   .chunks { max-height:320px; overflow:auto; font-size:.78rem; background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:.5rem; }
   .chunk { margin-bottom:.6rem; } .chunk b { color:#a5d8ff; }
@@ -259,7 +259,9 @@ function renderReview(detail) {
   const head = `<tr><th>Card</th><th>Min income (₹/yr)</th><th>Min age</th><th>Min CIBIL</th><th>Employment</th><th>Existing relationship</th></tr>`;
   $("review-table").innerHTML = head + rows.map((r, i) => {
     const emp = r.allowed_employment === "any" || r.allowed_employment === null ? EMP : r.allowed_employment;
-    const src = (k) => r.sources && r.sources[k] ? `<div class="muted small">from <code>${esc(r.sources[k])}</code></div>` : `<div class="muted small">not stated</div>`;
+    const val = {income: r.min_income, age: r.min_age, cibil: r.min_cibil, employment: null, relationship: r.relationship_required};
+    const src = (k) => r.sources && r.sources[k] ? `<div class="muted small">from <code>${esc(r.sources[k])}</code></div>`
+      : (val[k] !== null && val[k] !== undefined && !editable ? `<div class="warn">set by reviewer</div>` : `<div class="muted small">not stated</div>`);
     const dis = editable ? "" : "disabled";
     const warn = (r.guard_problems || []).length ? `<div class="warn">⚠ ${esc(r.guard_problems.join("; "))}</div>` : "";
     return `<tr data-i="${i}"><td><b>${esc(r.card)}</b>${warn}</td>
@@ -273,12 +275,15 @@ function renderReview(detail) {
             <option value="false" ${r.relationship_required === false ? "selected" : ""}>not required</option></select>${src("relationship")}</td></tr>`;
   }).join("");
   $("chunks").innerHTML = detail.chunks.map(c => `<div class="chunk"><b>${esc(c.chunk_id)}</b><br>${esc(c.text).replace(/\n/g, "<br>")}</div>`).join("");
-  const ch = detail.changes_vs_active || [];
-  $("changes").innerHTML = !detail.active_version ? "<li class='muted'>First version for this bank.</li>"
+  const ch = editable ? (detail.changes_vs_active || []) : (meta.changes || []);
+  $("changes").previousElementSibling.textContent = editable ? "Changes compared with the live version"
+    : `Changes this version made${meta.previous_version ? " (vs " + meta.previous_version + ")" : ""}`;
+  $("changes").innerHTML = editable && !detail.active_version ? "<li class='muted'>First version for this bank.</li>"
+    : !editable && !meta.previous_version && meta.status !== "draft" ? "<li class='muted'>First version for this bank (all cards added).</li>"
     : ch.length ? ch.map(c => c.change === "modified"
         ? `<li><b>${esc(c.card)}</b>: ${esc(c.field)} ${esc(fmt(c.field, c.old))} → <b>${esc(fmt(c.field, c.new))}</b></li>`
         : `<li><b>${esc(c.card)}</b>: ${esc(c.change)}</li>`).join("")
-    : "<li class='muted'>No change from the live version.</li>";
+    : "<li class='muted'>No changes.</li>";
   $("approve-btn").classList.toggle("hidden", !editable); $("reject-btn").classList.toggle("hidden", !editable);
   $("note").parentElement.classList.toggle("hidden", !editable);
   $("review").scrollIntoView({ behavior: "smooth" });
