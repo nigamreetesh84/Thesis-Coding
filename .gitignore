@@ -17,3 +17,7 @@ artifacts_hard/
 Mehul/
 mydev/
 *.zip
+# round 7 portal runtime data (created on first start)
+data/portal/
+config/portal_users.json
+results_fl/

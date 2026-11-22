@@ -15,6 +15,17 @@ class UnitVectorEmbedder:
         return vectors
 
 
+@pytest.fixture(autouse=True)
+def _isolated_portal(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every test that starts the API gets its own throw-away portal data (round 7)."""
+    from config.settings import settings
+
+    root = tmp_path_factory.mktemp("portal")
+    monkeypatch.setattr(settings, "portal_dir", root / "data")
+    monkeypatch.setattr(settings, "portal_index_dir", root / "artifacts")
+    monkeypatch.setattr(settings, "portal_users_path", root / "users.json")
+
+
 @pytest.fixture
 def example_profile() -> UserProfile:
     return UserProfile(

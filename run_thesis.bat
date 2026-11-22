@@ -18,8 +18,9 @@ set USE_STUB_LLM=true
 set RAG_DECISION_MODE=extract_compare
 
 echo.
-echo [3/4] Rebuilding FAISS index...
+echo [3/4] Rebuilding FAISS index and portal demo files...
 python -m src.pipeline
+python -m src.portal.samples
 
 if errorlevel 1 (
     echo ERROR: Pipeline execution failed!
@@ -35,6 +36,9 @@ echo http://127.0.0.1:8000
 echo.
 echo Swagger documentation:
 echo http://127.0.0.1:8000/docs
+echo.
+echo Bank portal (admin upload + customer comparison):
+echo http://127.0.0.1:8000/portal
 echo.
 echo Press CTRL+C to stop the server.
 echo ========================================

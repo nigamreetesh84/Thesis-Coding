@@ -1,0 +1,5 @@
+bank,card,min_income,min_age,min_cibil,employment,relationship_required,verified_by_author,note
+AXIS,Axis Bank ACE Credit Card,600000,18,,"salaried,self-employed",FALSE,FALSE,"income from aggregator (CardInsider); age from axis.bank.in ACE page"
+AXIS,Flipkart Axis Bank Credit Card,180000,18,,"salaried,self-employed",FALSE,FALSE,"Rs 15,000/month salaried (Rs 30,000/month self-employed: single-income schema keeps the lower value)"
+AXIS,Axis Bank Magnus Credit Card,2400000,18,,"salaried,self-employed",FALSE,FALSE,"Rs 24 lakh current; revised from Rs 18 lakh (superseded value must be ignored)"
+AXIS,Axis Bank Neo Credit Card,,18,,"salaried,self-employed",FALSE,FALSE,"income not published by Axis: no minimum is applied"
