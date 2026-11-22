@@ -259,8 +259,8 @@ _INCOME_PHRASE_RE = re.compile(
 _INCOME_CONTEXT_RE = re.compile(r"(income|earn|salary|make|making|drawing|ctc|package)[^.\d₹]{0,40}", re.IGNORECASE)
 _HAS_REL_RE = re.compile(
     r"(already (?:hold|holds|have|has|bank|banks)\b|already a customer|existing customer(?! of no)|"
-    r"(?:have|hold|has|holds) an? (?:\w+ ){0,2}account|banked with|bank with (?:sbi|hdfc)|"
-    r"(?:sbi|hdfc) (?:savings|salary|current|bank)? ?account|customer of (?:sbi|hdfc))",
+    r"(?:have|hold|has|holds) an? (?:\w+ ){0,2}account|banked with|bank with (?:sbi|hdfc|axis)|"
+    r"(?:sbi|hdfc|axis) (?:savings|salary|current|bank)? ?account|customer of (?:sbi|hdfc|axis))",
     re.IGNORECASE,
 )
 _NO_REL_RE = re.compile(

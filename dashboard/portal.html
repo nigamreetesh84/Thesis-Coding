@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bank Portal – Credit Card Recommender</title>
+<style>
+  :root { color-scheme: dark; --bg:#0f1117; --panel:#171923; --line:#2a2d3a; --text:#e6e6e6; --muted:#9aa0a6;
+          --blue:#4c6ef5; --green:#2b8a3e; --red:#c92a2a; --amber:#f59f00; }
+  * { box-sizing: border-box; }
+  body { background:var(--bg); color:var(--text); font-family:system-ui,sans-serif; margin:0; padding:1.5rem; max-width:1100px; margin-inline:auto; }
+  h1 { font-size:1.35rem; margin:0 0 .2rem; } h2 { font-size:1.05rem; margin:0 0 .75rem; } h3 { font-size:.95rem; margin:.2rem 0 .4rem; }
+  .muted { color:var(--muted); font-size:.85rem; } .small { font-size:.78rem; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:1.1rem; margin-bottom:1rem; }
+  .row { display:flex; gap:.75rem; flex-wrap:wrap; align-items:flex-end; }
+  label { display:flex; flex-direction:column; gap:.3rem; font-size:.82rem; }
+  input, select, textarea { background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:6px; padding:.45rem .5rem; font:inherit; }
+  textarea { width:100%; min-height:64px; }
+  button { background:var(--blue); color:#fff; border:none; border-radius:7px; padding:.55rem .95rem; cursor:pointer; font-size:.9rem; }
+  button.secondary { background:#343a4a; } button.danger { background:var(--red); } button.ok { background:var(--green); }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; }
+  .pill { display:inline-block; padding:.1rem .5rem; border-radius:999px; font-size:.72rem; font-weight:600; background:#343a4a; }
+  .pill.approved { background:var(--green); } .pill.draft { background:var(--amber); color:#111; } .pill.rejected { background:var(--red); } .pill.superseded { background:#495057; }
+  table { width:100%; border-collapse:collapse; font-size:.83rem; }
+  th, td { text-align:left; padding:.4rem .45rem; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; }
+  td input[type=number], td input[type=text] { width:100%; }
+  .warn { color:var(--amber); font-size:.78rem; } .err { color:#ff8787; margin-top:.5rem; } .good { color:#69db7c; }
+  .chunks { max-height:320px; overflow:auto; font-size:.78rem; background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:.5rem; }
+  .chunk { margin-bottom:.6rem; } .chunk b { color:#a5d8ff; }
+  .grid2 { display:grid; grid-template-columns: 1.6fr 1fr; gap:1rem; }
+  @media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:.8rem; }
+  .card { border-radius:10px; padding:.85rem; border:1px solid var(--line); }
+  .card.recommended { background:#0f3d24; border-color:var(--green); } .card.not-eligible { background:#3d1a1a; border-color:var(--red); }
+  .card.needs-review { background:#3d3410; border-color:var(--amber); }
+  .card .badge { display:inline-block; font-size:.68rem; padding:.12rem .5rem; border-radius:999px; font-weight:700; margin-bottom:.4rem; }
+  .card.recommended .badge { background:var(--green); } .card.not-eligible .badge { background:var(--red); } .card.needs-review .badge { background:var(--amber); color:#111; }
+  .card p { margin:.25rem 0; font-size:.84rem; } .card .meta { font-size:.72rem; color:var(--muted); }
+  .bankbox { display:flex; gap:1rem; flex-wrap:wrap; }
+  .bankbox label { flex-direction:row; align-items:center; gap:.4rem; font-size:.9rem; }
+  .hidden { display:none; }
+  .changes li { font-size:.82rem; }
+  code { font-size:.78rem; color:#a5d8ff; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <h1>Eligibility-Aware Credit Card Recommender – Bank Portal</h1>
+    <div class="muted">SBI · HDFC · Axis Bank. Bank tie-up simulated for the thesis prototype; no customer details are stored.</div>
+  </div>
+  <div id="who" class="hidden"><span id="who-text" class="muted"></span> <button class="secondary" id="logout">Log out</button></div>
+</div>
+
+<!-- LOGIN -->
+<div id="login-view" class="panel" style="max-width:420px">
+  <h2>Log in</h2>
+  <div class="row">
+    <label>Username <input id="u" autocomplete="username" /></label>
+    <label>Password <input id="p" type="password" autocomplete="current-password" /></label>
+    <button id="login-btn">Log in</button>
+  </div>
+  <div id="login-err" class="err"></div>
+  <p class="muted small">Demo accounts: <code>admin_sbi</code>, <code>admin_hdfc</code>, <code>admin_axis</code> (bank employees) and
+    <code>customer</code>. Passwords are in PORTAL_AND_FL.md.</p>
+</div>
+
+<!-- ADMIN -->
+<div id="admin-view" class="hidden">
+  <div class="panel">
+    <h2 id="admin-title">Rule versions</h2>
+    <div id="versions"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Upload a rule document</h2>
+    <div class="row">
+      <label>File (.pdf, .md, .txt) <input type="file" id="file" accept=".pdf,.md,.txt" /></label>
+      <label style="flex:1;min-width:280px">Card names in the document (comma-separated; not needed for rule-format files)
+        <input id="card-names" placeholder="e.g. Axis Bank ACE Credit Card, Axis Bank Neo Credit Card" /></label>
+      <button id="upload-btn">Upload and extract</button>
+    </div>
+    <div id="samples" class="muted small" style="margin-top:.5rem"></div>
+    <div id="upload-err" class="err"></div>
+  </div>
+
+  <div id="review" class="panel hidden">
+    <h2 id="review-title">Review</h2>
+    <p class="muted small">Values below were read from the document by the extractor, with the chunk each came from.
+      Check every value against the source text, correct it if needed, then approve. Only approved versions reach customers.
+      Corrections are saved as this bank's local training data for federated learning.</p>
+    <div class="grid2">
+      <div><table id="review-table"></table></div>
+      <div><h3>Source chunks</h3><div class="chunks" id="chunks"></div></div>
+    </div>
+    <h3 style="margin-top:.9rem">Changes compared with the live version</h3>
+    <ul class="changes" id="changes"></ul>
+    <div class="row" style="margin-top:.6rem">
+      <label style="flex:1">Note <input id="note" placeholder="e.g. checked against the official page on 23 Nov" /></label>
+      <button class="ok" id="approve-btn">Approve and publish</button>
+      <button class="danger" id="reject-btn">Reject</button>
+    </div>
+    <div id="review-err" class="err"></div><div id="review-ok" class="good"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Audit log <span id="audit-status"></span></h2>
+    <p class="muted small">Every upload, approval and customer decision is appended to a hash-chained log; editing any past entry breaks the chain.</p>
+    <table id="audit"></table>
+  </div>
+</div>
+
+<!-- CUSTOMER -->
+<div id="customer-view" class="hidden">
+  <div class="panel">
+    <h2>1. Choose the banks to compare (at least two)</h2>
+    <div class="bankbox" id="bank-checks"></div>
+    <div id="bank-err" class="err"></div>
+  </div>
+  <div class="panel">
+    <h2>2. Tell us about yourself</h2>
+    <label>In plain language
+      <textarea id="msg" placeholder="e.g. I'm 34, salaried, earn 18 lakh a year, CIBIL 780, and I already bank with Axis."></textarea></label>
+    <div class="row" style="margin-top:.5rem"><button id="ask-btn">Ask</button></div>
+    <div id="questions" class="warn" style="margin-top:.5rem;font-size:.9rem"></div>
+    <div id="understood" class="muted small" style="margin-top:.4rem"></div>
+    <p class="muted" style="text-align:center;margin:.8rem 0">or enter the details directly</p>
+    <div class="row">
+      <label>Annual income (₹) <input type="number" id="f-income" value="1800000" min="0" /></label>
+      <label>Age <input type="number" id="f-age" value="34" min="18" max="100" /></label>
+      <label>CIBIL <input type="number" id="f-cibil" value="780" min="300" max="900" /></label>
+      <label>Employment <select id="f-emp"><option value="salaried">Salaried</option><option value="self-employed">Self-employed</option><option value="business owner">Business owner</option></select></label>
+      <div><div class="muted small">I already bank with</div><div class="bankbox" id="existing-checks"></div></div>
+      <button id="form-btn">Check eligibility</button>
+    </div>
+    <div id="cust-err" class="err"></div>
+  </div>
+  <div class="panel hidden" id="results-panel">
+    <h2 id="results-title">Results</h2>
+    <div id="results-meta" class="muted small" style="margin-bottom:.6rem"></div>
+    <div class="cards" id="results"></div>
+  </div>
+</div>
+
+<script>
+const API = (location.port === "5500" || location.protocol === "file:") ? "http://localhost:8000" : "";
+const EMP = ["salaried", "self-employed", "business owner"];
+let session = null;          // {token, username, role, bank}
+let draft = null;            // version detail under review
+let nlPrevious = null;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+const rupees = (v) => v === null || v === undefined || v === "" ? "—" : "₹" + Math.round(Number(v)).toLocaleString("en-IN");
+
+async function api(path, opts = {}) {
+  const headers = Object.assign({}, opts.headers || {});
+  if (session) headers["Authorization"] = "Bearer " + session.token;
+  if (opts.json !== undefined) { headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(opts.json); }
+  const res = await fetch(API + path, Object.assign({}, opts, { headers }));
+  if (!res.ok) {
+    let detail = res.statusText;
+    try { const j = await res.json(); detail = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail); } catch (e) {}
+    if (res.status === 401 && session) { logout(); }
+    throw new Error(detail);
+  }
+  const type = res.headers.get("content-type") || "";
+  return type.includes("application/json") ? res.json() : res;
+}
+
+// ---------------- login ----------------
+$("login-btn").onclick = async () => {
+  $("login-err").textContent = "";
+  try {
+    session = await api("/portal/login", { method: "POST", json: { username: $("u").value.trim(), password: $("p").value } });
+    try { sessionStorage.setItem("portal", JSON.stringify(session)); } catch (e) {}
+    show();
+  } catch (e) { $("login-err").textContent = e.message; }
+};
+$("p").addEventListener("keydown", (e) => { if (e.key === "Enter") $("login-btn").click(); });
+$("logout").onclick = () => logout();
+function logout() {
+  session = null; draft = null; nlPrevious = null;
+  try { sessionStorage.removeItem("portal"); } catch (e) {}
+  show();
+}
+function show() {
+  const role = session ? session.role : null;
+  $("login-view").classList.toggle("hidden", !!session);
+  $("who").classList.toggle("hidden", !session);
+  $("admin-view").classList.toggle("hidden", role !== "admin");
+  $("customer-view").classList.toggle("hidden", role !== "customer");
+  if (!session) return;
+  $("who-text").textContent = session.role === "admin" ? `${session.username} · ${session.bank} administrator` : `${session.username} · customer`;
+  if (role === "admin") loadAdmin(); else loadCustomer();
+}
+
+// ---------------- admin ----------------
+async function loadAdmin() {
+  $("admin-title").textContent = `${session.bank} rule versions`;
+  $("samples").innerHTML = session.bank === "AXIS"
+    ? `Demo files: <a href="#" data-s="axis_eligibility_2026-11.pdf">Axis eligibility page (real, compiled)</a> ·
+       <a href="#" data-s="axis_eligibility_ILLUSTRATIVE_update.pdf">illustrative update</a> ·
+       <a href="#" data-s="prompt_injection_test.pdf">prompt-injection test</a>.
+       Card names: <code>Axis Bank ACE Credit Card, Flipkart Axis Bank Credit Card, Axis Bank Magnus Credit Card, Axis Bank Neo Credit Card</code>`
+    : "Tip: a file already in the rule format (### Card – Rule headings) needs no card names.";
+  document.querySelectorAll("[data-s]").forEach(a => a.onclick = async (e) => {
+    e.preventDefault();
+    const res = await api("/portal/admin/samples/" + a.dataset.s);
+    const blob = await res.blob();
+    const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = a.dataset.s; link.click();
+  });
+  await Promise.all([loadVersions(), loadAudit()]);
+}
+
+async function loadVersions() {
+  const data = await api("/portal/admin/versions");
+  const rows = data.versions.slice().reverse().map(v => `<tr>
+      <td><b>${esc(v.version)}</b>${v.version === data.active_version ? " <span class='pill approved'>LIVE</span>" : ""}</td>
+      <td><span class="pill ${esc(v.status)}">${esc(v.status)}</span></td>
+      <td>${esc(v.filename)}<div class="muted small">${esc(v.mode)} · ${esc((v.cards || []).length)} card(s) · extractor: ${esc(v.extractor)}</div></td>
+      <td>${esc(v.uploader)}<div class="muted small">${esc(v.uploaded_at)}</div></td>
+      <td>${esc(v.approver || "")}<div class="muted small">${esc(v.approved_at || "")}</div></td>
+      <td>${v.changes ? esc(v.changes.length) + " change(s)" : ""}${v.n_corrections !== undefined ? `<div class="muted small">${esc(v.n_corrections)} correction(s)</div>` : ""}</td>
+      <td><button class="secondary" data-v="${esc(v.version)}">${v.status === "draft" ? "Review" : "View"}</button></td></tr>`).join("");
+  $("versions").innerHTML = data.versions.length
+    ? `<table><tr><th>Version</th><th>Status</th><th>Document</th><th>Uploaded</th><th>Approved</th><th>Diff</th><th></th></tr>${rows}</table>`
+    : "<p class='muted'>No rules yet. Upload your bank's eligibility document below.</p>";
+  document.querySelectorAll("[data-v]").forEach(b => b.onclick = () => openVersion(b.dataset.v));
+}
+
+$("upload-btn").onclick = async () => {
+  $("upload-err").textContent = "";
+  const f = $("file").files[0];
+  if (!f) { $("upload-err").textContent = "Choose a file first."; return; }
+  const form = new FormData(); form.append("file", f); form.append("card_names", $("card-names").value);
+  $("upload-btn").disabled = true; $("upload-btn").textContent = "Extracting…";
+  try {
+    const detail = await api("/portal/admin/upload", { method: "POST", body: form });
+    await loadVersions(); renderReview(detail); loadAudit();
+  } catch (e) { $("upload-err").textContent = e.message; }
+  finally { $("upload-btn").disabled = false; $("upload-btn").textContent = "Upload and extract"; }
+};
+
+async function openVersion(v) {
+  try { renderReview(await api("/portal/admin/versions/" + v)); } catch (e) { $("upload-err").textContent = e.message; }
+}
+
+function renderReview(detail) {
+  draft = detail;
+  const meta = detail.meta, editable = meta.status === "draft";
+  const rows = (editable ? detail.extracted : (detail.approved || detail.extracted));
+  $("review").classList.remove("hidden");
+  $("review-title").innerHTML = `${esc(meta.bank)} ${esc(meta.version)} <span class="pill ${esc(meta.status)}">${esc(meta.status)}</span>
+     <span class="muted small">${esc(meta.filename)}</span>`;
+  $("review-err").textContent = ""; $("review-ok").textContent = "";
+  const head = `<tr><th>Card</th><th>Min income (₹/yr)</th><th>Min age</th><th>Min CIBIL</th><th>Employment</th><th>Existing relationship</th></tr>`;
+  $("review-table").innerHTML = head + rows.map((r, i) => {
+    const emp = r.allowed_employment === "any" || r.allowed_employment === null ? EMP : r.allowed_employment;
+    const src = (k) => r.sources && r.sources[k] ? `<div class="muted small">from <code>${esc(r.sources[k])}</code></div>` : `<div class="muted small">not stated</div>`;
+    const dis = editable ? "" : "disabled";
+    const warn = (r.guard_problems || []).length ? `<div class="warn">⚠ ${esc(r.guard_problems.join("; "))}</div>` : "";
+    return `<tr data-i="${i}"><td><b>${esc(r.card)}</b>${warn}</td>
+      <td><input type="number" data-f="min_income" value="${r.min_income ?? ""}" ${dis} />${src("income")}<div class="muted small">${rupees(r.min_income)}</div></td>
+      <td><input type="number" data-f="min_age" value="${r.min_age ?? ""}" ${dis} />${src("age")}</td>
+      <td><input type="number" data-f="min_cibil" value="${r.min_cibil ?? ""}" ${dis} />${src("cibil")}</td>
+      <td>${EMP.map(e => `<label style="flex-direction:row;gap:.3rem"><input type="checkbox" data-emp="${e}" ${emp.includes(e) ? "checked" : ""} ${dis}/>${e}</label>`).join("")}${src("employment")}</td>
+      <td><select data-f="relationship_required" ${dis}>
+            <option value="" ${r.relationship_required === null || r.relationship_required === undefined ? "selected" : ""}>not stated</option>
+            <option value="true" ${r.relationship_required === true ? "selected" : ""}>required</option>
+            <option value="false" ${r.relationship_required === false ? "selected" : ""}>not required</option></select>${src("relationship")}</td></tr>`;
+  }).join("");
+  $("chunks").innerHTML = detail.chunks.map(c => `<div class="chunk"><b>${esc(c.chunk_id)}</b><br>${esc(c.text).replace(/\n/g, "<br>")}</div>`).join("");
+  const ch = detail.changes_vs_active || [];
+  $("changes").innerHTML = !detail.active_version ? "<li class='muted'>First version for this bank.</li>"
+    : ch.length ? ch.map(c => c.change === "modified"
+        ? `<li><b>${esc(c.card)}</b>: ${esc(c.field)} ${esc(fmt(c.field, c.old))} → <b>${esc(fmt(c.field, c.new))}</b></li>`
+        : `<li><b>${esc(c.card)}</b>: ${esc(c.change)}</li>`).join("")
+    : "<li class='muted'>No change from the live version.</li>";
+  $("approve-btn").classList.toggle("hidden", !editable); $("reject-btn").classList.toggle("hidden", !editable);
+  $("note").parentElement.classList.toggle("hidden", !editable);
+  $("review").scrollIntoView({ behavior: "smooth" });
+}
+function fmt(field, v) { return field === "min_income" ? rupees(v) : (Array.isArray(v) ? v.join(", ") : String(v)); }
+
+function collectApproved() {
+  return Array.from(document.querySelectorAll("#review-table tr[data-i]")).map(tr => {
+    const base = draft.extracted[Number(tr.dataset.i)];
+    const val = (f) => { const el = tr.querySelector(`[data-f="${f}"]`); return el.value === "" ? null : el.value; };
+    const emp = EMP.filter(e => tr.querySelector(`[data-emp="${e}"]`).checked);
+    const rel = val("relationship_required");
+    return { card: base.card, sources: base.sources, min_income: val("min_income"), min_age: val("min_age"),
+             min_cibil: val("min_cibil"), allowed_employment: emp.length === 3 || emp.length === 0 ? "any" : emp,
+             relationship_required: rel === null ? null : rel === "true" };
+  });
+}
+$("approve-btn").onclick = async () => {
+  $("review-err").textContent = ""; $("review-ok").textContent = "";
+  try {
+    const out = await api(`/portal/admin/versions/${draft.meta.version}/approve`, { method: "POST", json: { approved: collectApproved(), note: $("note").value } });
+    $("review-ok").textContent = `Approved and published ${out.meta.version} · ${out.changes.length} change(s) · ${out.meta.n_corrections} correction(s) saved for federated learning.`;
+    await loadVersions(); await loadAudit(); openVersion(out.meta.version);
+  } catch (e) { $("review-err").textContent = e.message; }
+};
+$("reject-btn").onclick = async () => {
+  try { await api(`/portal/admin/versions/${draft.meta.version}/reject`, { method: "POST", json: { note: $("note").value } });
+        await loadVersions(); await loadAudit(); $("review").classList.add("hidden"); }
+  catch (e) { $("review-err").textContent = e.message; }
+};
+
+async function loadAudit() {
+  const data = await api("/portal/admin/audit");
+  $("audit-status").innerHTML = data.verify.ok ? `<span class="pill approved">chain intact · ${data.verify.entries} entries</span>`
+    : `<span class="pill rejected">TAMPERING DETECTED at entry ${esc(data.verify.first_bad_index)}</span>`;
+  $("audit").innerHTML = `<tr><th>#</th><th>Time</th><th>Event</th><th>By</th><th>Details</th><th>Entry hash</th></tr>` +
+    data.entries.slice().reverse().map(e => `<tr><td>${esc(e.index)}</td><td class="small">${esc(e.time)}</td><td>${esc(e.event)}</td>
+      <td>${esc(e.actor)}</td><td class="small">${esc(summary(e))}</td><td><code>${esc(e.entry_hash.slice(0, 12))}…</code></td></tr>`).join("");
+}
+function summary(e) {
+  const d = e.data;
+  if (e.event === "customer_decision") return `banks ${d.banks.join("/")} · ${d.n_eligible}/${d.n_cards} eligible · versions ${Object.entries(d.rule_versions).map(([b, v]) => b + " " + v.version).join(", ")}`;
+  if (e.event === "rule_approval") return `${d.bank} ${d.version} · ${d.n_changes} change(s) · ${d.n_corrections} correction(s)`;
+  return `${d.bank || ""} ${d.version || ""} ${d.filename || ""}`;
+}
+
+// ---------------- customer ----------------
+async function loadCustomer() {
+  const banks = await api("/portal/banks");
+  $("bank-checks").innerHTML = banks.map(b => `<label title="${b.active_version ? esc(b.cards.join(", ")) : "No approved rules yet"}">
+      <input type="checkbox" class="bank" value="${esc(b.code)}" ${b.active_version ? "checked" : "disabled"} />
+      ${esc(b.name)} <span class="muted small">${b.active_version ? esc(b.active_version) + " · " + b.cards.length + " cards" : "not yet available"}</span></label>`).join("");
+  $("existing-checks").innerHTML = banks.map(b => `<label><input type="checkbox" class="existing" value="${esc(b.code)}" />${esc(b.name)}</label>`).join("");
+}
+function chosenBanks() {
+  const banks = Array.from(document.querySelectorAll(".bank:checked")).map(c => c.value);
+  $("bank-err").textContent = banks.length < 2 ? "Choose at least two banks to compare." : "";
+  return banks.length < 2 ? null : banks;
+}
+$("ask-btn").onclick = async () => {
+  const banks = chosenBanks(); if (!banks) return;
+  const message = $("msg").value.trim(); if (!message) return;
+  $("cust-err").textContent = "";
+  try {
+    const data = await api("/portal/ask", { method: "POST", json: { message, banks, previous: nlPrevious } });
+    const u = data.understood;
+    $("understood").textContent = `Understood: income ${rupees(u.income)} a year${u.income_text ? ` (from "${u.income_text}")` : ""}, age ${u.age ?? "?"}, CIBIL ${u.cibil ?? "?"}, ${u.employment ?? "?"}, existing bank relationship: ${u.existing_relationship === null ? "?" : (u.existing_relationship ? "yes" + (u.existing_banks.length ? " (" + u.existing_banks.join(", ") + ")" : "") : "no")}`;
+    if (data.status === "need_more_info") {
+      nlPrevious = u; $("questions").innerHTML = data.questions.map(q => "• " + esc(q)).join("<br>"); $("msg").value = ""; return;
+    }
+    nlPrevious = null; $("questions").textContent = "";
+    if (u.income) $("f-income").value = Math.round(u.income); if (u.age) $("f-age").value = u.age; if (u.cibil) $("f-cibil").value = u.cibil;
+    if (u.employment) $("f-emp").value = u.employment;
+    renderResults(data);
+  } catch (e) { $("cust-err").textContent = e.message; }
+};
+$("form-btn").onclick = async () => {
+  const banks = chosenBanks(); if (!banks) return;
+  $("cust-err").textContent = "";
+  try {
+    const data = await api("/portal/recommend", { method: "POST", json: {
+      annual_income: Number($("f-income").value), age: Number($("f-age").value), cibil: Number($("f-cibil").value),
+      employment: $("f-emp").value, banks, existing_banks: Array.from(document.querySelectorAll(".existing:checked")).map(c => c.value) } });
+    renderResults(data);
+  } catch (e) { $("cust-err").textContent = e.message; }
+};
+function renderResults(data) {
+  $("results-panel").classList.remove("hidden");
+  const ok = data.cards.filter(c => c.recommended && !c.needs_review).length;
+  $("results-title").textContent = `You qualify for ${ok} of ${data.cards.length} cards`;
+  $("results-meta").innerHTML = `Rule versions used: ${Object.entries(data.rule_versions).map(([b, v]) => `${esc(b)} ${esc(v.version)} <code>${esc((v.hash || "").slice(0, 10))}</code>`).join(" · ")}
+     · audit entry <code>${esc((data.audit_entry || "").slice(0, 12))}…</code>`;
+  $("results").innerHTML = data.cards.map(c => {
+    const cls = c.needs_review ? "needs-review" : (c.recommended ? "recommended" : "not-eligible");
+    const badge = c.needs_review ? "CHECK WITH BANK" : (c.recommended ? "ELIGIBLE" : "NOT ELIGIBLE");
+    return `<div class="card ${cls}"><span class="badge">${badge}</span><h3>${esc(c.bank_name)} — ${esc(c.card)}</h3>
+      <p>${esc(c.sentence)}</p><div class="meta">rule ${esc(c.cited_chunk_id || "n/a")} · ${esc(c.bank)} ${esc(c.rule_version || "")}</div></div>`;
+  }).join("");
+  $("results-panel").scrollIntoView({ behavior: "smooth" });
+}
+
+// restore a session after a page reload
+try { const saved = sessionStorage.getItem("portal"); if (saved) session = JSON.parse(saved); } catch (e) {}
+show();
+</script>
+</body>
+</html>

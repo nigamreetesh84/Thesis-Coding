@@ -27,6 +27,11 @@ from src.infrastructure.llm_client import LocalLLMClient, StubLLM
 from src.infrastructure.vector_store import VectorStore
 from src.model import GroundedPromptBuilder, RAGRecommender, Retriever
 from src.nl_interface import AnswerWriter, CardRanker, NLRecommender, QueryParser
+from src.portal import routes as portal_routes
+from src.portal.auth import TokenSigner, UserStore
+from src.portal.registry import RuleRegistry
+from src.portal.rule_extractor import make_extractor
+from src.portal.service import PortalService
 
 EmploymentType = Literal["salaried", "self-employed", "business owner"]
 
@@ -138,6 +143,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     _state["nl"] = NLRecommender(
         QueryParser(llm_client), nl_recommender, CardRanker(embedder, vector_store), AnswerWriter(llm_client)
     )
+    # Round 7 bank portal (separate knowledge base; the frozen path above is untouched).
+    registry = RuleRegistry(settings.portal_dir, settings.portal_index_dir, embedder=embedder)
+    portal = PortalService(registry, make_extractor(llm_client, settings.use_stub_llm), llm_client, embedder,
+                           use_writer=not settings.use_stub_llm)
+    portal.seed(settings.rule_docs_dir, settings.eligibility_table_path)
+    portal_routes.configure(portal, UserStore(settings.portal_users_path), TokenSigner())
     yield
     _state.clear()
 
@@ -158,6 +169,15 @@ app.add_middleware(
 def dashboard() -> FileResponse:
     """Serve the dashboard from the API, so http://<host>:8000/ opens it."""
     return FileResponse("dashboard/index.html")
+
+
+@app.get("/portal", include_in_schema=False)
+def portal_page() -> FileResponse:
+    """Bank portal (admin upload/approval and customer comparison), round 7."""
+    return FileResponse("dashboard/portal.html")
+
+
+app.include_router(portal_routes.router)
 
 @app.post("/recommend", response_model=RecommendOut)
 def recommend(profile_in: ProfileIn) -> RecommendOut:

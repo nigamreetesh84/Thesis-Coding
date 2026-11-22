@@ -40,5 +40,10 @@ class Settings(BaseSettings):
 
     telemetry_maxlen: int = 500
 
+    # Round 7 bank portal (src/portal/): versioned approved rules, live index, demo users.
+    portal_dir: Path = Path("data/portal")
+    portal_index_dir: Path = Path("artifacts/portal")
+    portal_users_path: Path = Path("config/portal_users.json")
+
 
 settings = Settings()

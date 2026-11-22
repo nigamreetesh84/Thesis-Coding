@@ -22,6 +22,7 @@ they are evaluated separately by evaluation/run_nl_eval.py.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field, replace
 from typing import Any
 
@@ -190,8 +191,10 @@ class NLRecommender:
         ranker: CardRanker | None = None,
         writer: AnswerWriter | None = None,
     ) -> None:
-        if recommender.decision_mode != "extract_compare":
-            raise ValueError("the natural-language interface uses the frozen extract_compare design")
+        # extract_compare = frozen thesis design; approved_kb = round 7 portal, which applies the
+        # same deterministic comparison to employee-approved requirements (src/portal/).
+        if recommender.decision_mode not in {"extract_compare", "approved_kb"}:
+            raise ValueError("the natural-language interface needs a deterministic decision path")
         self.parser = parser
         self.recommender = recommender
         self.ranker = ranker
@@ -205,6 +208,13 @@ class NLRecommender:
                 answer = short_yes_no(message)
                 if answer is not None:
                     parsed = replace(parsed, existing_relationship=answer)
+            # A bare number answers the one numeric question asked ("760" after "What is your CIBIL score?")
+            bare = re.fullmatch(r"\s*(\d{2,3})\s*\.?\s*", message)
+            if bare and len(previous.missing) == 1 and previous.missing[0] in {"cibil", "age"}:
+                value = int(bare.group(1))
+                field_name = previous.missing[0]
+                if (field_name == "cibil" and 300 <= value <= 900) or (field_name == "age" and 16 <= value <= 100):
+                    parsed = replace(parsed, **{field_name: value})
             parsed = previous.merged_with(parsed)
         if parsed.missing:
             return NLResult(status="need_more_info", understood=parsed, questions=parsed.follow_up_questions())
