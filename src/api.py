@@ -129,7 +129,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     vector_store = VectorStore(settings.faiss_index_path, settings.chunks_parquet_path).load()
     retriever = Retriever(embedder, vector_store, top_k=settings.top_k)
     llm_client = StubLLM() if settings.use_stub_llm else LocalLLMClient(settings.llm_model_name)
-    recommender = RAGRecommender(retriever, llm_client, GroundedPromptBuilder())
+    # Dashboard form uses the same frozen final design as /ask, so both paths
+    # show the system's own decisions (not the stub echoing the eligibility table).
+    recommender = RAGRecommender(retriever, llm_client, GroundedPromptBuilder(), decision_mode="extract_compare")
     _state["service"] = RecommendService(recommender)
     # Natural-language interface: always the frozen extract_compare design.
     nl_recommender = RAGRecommender(retriever, llm_client, GroundedPromptBuilder(), decision_mode="extract_compare")

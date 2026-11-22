@@ -204,6 +204,7 @@
     function renderResult(data) {
       document.getElementById("stat-latency").textContent = data.latency_ms.toFixed(1) + " ms";
       document.getElementById("stat-k").textContent = data.retrieved_k;
+      document.getElementById("cards").scrollIntoView({ behavior: "smooth", block: "start" });
       document.getElementById("stat-count").textContent = data.decisions.length;
 
       const container = document.getElementById("cards");
@@ -238,6 +239,13 @@
         const data = await res.json();
         const u = data.understood;
         const fmt = (v) => (v === null || v === undefined ? "?" : v);
+        // Keep the form in step with what was understood, so the two views never disagree.
+        const setField = (id, v) => { if (v !== null && v !== undefined) document.getElementById(id).value = String(v); };
+        setField("annual_income", u.income !== null && u.income !== undefined ? Math.round(u.income) : null);
+        setField("age", u.age);
+        setField("cibil", u.cibil);
+        setField("employment", u.employment);
+        setField("existing_relationship", u.existing_relationship);
         document.getElementById("nl-understood").textContent =
           `Understood: income ₹${u.income ? Math.round(u.income).toLocaleString("en-IN") : "?"} a year` +
           ` (from "${fmt(u.income_text)}"), age ${fmt(u.age)}, CIBIL ${fmt(u.cibil)}, ${fmt(u.employment)},` +
