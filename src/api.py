@@ -148,7 +148,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     portal = PortalService(registry, make_extractor(llm_client, settings.use_stub_llm), llm_client, embedder,
                            use_writer=not settings.use_stub_llm)
     portal.seed(settings.rule_docs_dir, settings.eligibility_table_path)
-    portal_routes.configure(portal, UserStore(settings.portal_users_path), TokenSigner())
+    portal_routes.configure(portal, UserStore(settings.portal_users_path, audit=registry.audit), TokenSigner())
     yield
     _state.clear()
 

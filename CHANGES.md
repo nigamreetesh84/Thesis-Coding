@@ -125,3 +125,14 @@ The decision path (retrieval, extraction, deterministic comparison, fail-closed 
 | `dashboard/index.html` | "Describe yourself in plain language" panel calling `/ask`; amber "check with bank" card for needs_review | Demo / video |
 | `evaluation/run_nl_eval.py` (new) | Parser field accuracy (LLM vs regex baseline), end-to-end profile accuracy from free text, follow-up rate, writer guard acceptance, verdict agreement; two message sets (gold profile_text; generated first-person messages in rupees / lakh / monthly / LPA) | Chapter 4 table for the new layer |
 | `tests/test_nl_interface.py` (new) | 28 tests (100 total) | |
+
+### Round 7b (25 Nov 2026): user management
+The frozen path (src/model.py, src/prompts.py, data/rule_docs*, POST /recommend, POST /ask) and the round 7 rule workflow are unchanged.
+
+| File | Change | Why |
+|---|---|---|
+| `src/portal/auth.py` | Third role `platform_admin`; account profile (name, e-mail, employee ID, status); password policy and generator; lock-out (5 tries / 15 min); per-user token version for revocation; forced change of temporary passwords; guards (self, last platform admin); atomic writes; migration of round-7 user files; every change audited | Thesis 3.9 listed platform admin / user management as design only; bank onboarding needed a real flow |
+| `src/portal/routes.py` | `/portal/users*` CRUD (no delete: deactivate), `/portal/me/password`, `/portal/admin/team`; tokens checked against the live account on every request; bank audit view hides other banks' account events | |
+| `src/api.py` | `UserStore` writes to the portal audit chain | One tamper-evident log for rules, decisions and accounts |
+| `dashboard/portal.html` | User management page (stats, partner banks, filters, register/edit/disable/enable/reset/unlock, account activity), forced password change, change-my-password, bank team panel | |
+| `tests/test_users.py` (new) | 14 tests (138 total) | |

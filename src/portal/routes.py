@@ -11,7 +11,20 @@ from pydantic import BaseModel, Field
 
 from src.domain.entities import UserProfile
 from src.domain.query_parsing import ParsedQuery
-from src.portal.auth import TokenSigner, User, UserStore
+from src.portal.auth import (
+    BANK_DISPLAY,
+    BANKS,
+    MAX_FAILED_LOGINS,
+    MIN_PASSWORD_LENGTH,
+    ROLE_LABELS,
+    ROLES,
+    AuthError,
+    TokenSigner,
+    User,
+    UserError,
+    UserStore,
+    password_problems,
+)
 from src.portal.ingest import IngestError
 from src.portal.registry import RegistryError, diff_requirements
 from src.portal.service import PortalService
@@ -33,17 +46,39 @@ def _service() -> PortalService:
     return _state["service"]  # type: ignore[no-any-return]
 
 
-def current_user(authorization: str = Header(default="")) -> User:
+def _users() -> UserStore:
+    if "users" not in _state:
+        raise HTTPException(503, "Portal not initialised")
+    return _state["users"]  # type: ignore[no-any-return]
+
+
+def session_user(authorization: str = Header(default="")) -> User:
+    """Any logged-in account, even one that still has to change its password."""
     token = authorization.removeprefix("Bearer ").strip()
-    user = _state["signer"].verify(token) if token else None
+    claimed = _state["signer"].verify(token) if token else None
+    # the token must still match a live account: disabling, password resets and role
+    # changes bump the account's token version and so revoke every older token
+    user = _users().session_user(claimed.username, claimed.token_version) if claimed else None
     if user is None:
         raise HTTPException(401, "Please log in")
-    return user  # type: ignore[no-any-return]
+    return user
+
+
+def current_user(user: User = Depends(session_user)) -> User:
+    if user.must_change_password:
+        raise HTTPException(403, "Password change required before using the portal")
+    return user
 
 
 def admin_user(user: User = Depends(current_user)) -> User:
     if user.role != "admin" or not user.bank:
         raise HTTPException(403, "Bank administrators only")
+    return user
+
+
+def platform_admin_user(user: User = Depends(current_user)) -> User:
+    if user.role != "platform_admin":
+        raise HTTPException(403, "Platform administrators only")
     return user
 
 
@@ -63,17 +98,37 @@ class LoginIn(BaseModel):
     password: str = Field(min_length=1, max_length=128)
 
 
+def _session_out(user: User) -> dict[str, Any]:
+    return {"token": _state["signer"].issue(user), "username": user.username, "role": user.role, "bank": user.bank,
+            "full_name": user.full_name, "must_change_password": user.must_change_password}
+
+
 @router.post("/login")
 def login(body: LoginIn) -> dict[str, Any]:
-    user = _state["users"].verify(body.username, body.password)
-    if user is None:
-        raise HTTPException(401, "Wrong username or password")
-    return {"token": _state["signer"].issue(user), "username": user.username, "role": user.role, "bank": user.bank}
+    try:
+        user = _users().authenticate(body.username, body.password)
+    except AuthError as exc:
+        raise HTTPException(401, str(exc)) from exc
+    return _session_out(user)
 
 
 @router.get("/me")
-def me(user: User = Depends(current_user)) -> dict[str, Any]:
-    return {"username": user.username, "role": user.role, "bank": user.bank}
+def me(user: User = Depends(session_user)) -> dict[str, Any]:
+    return _users().public(user.username)
+
+
+class ChangePasswordIn(BaseModel):
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=1, max_length=128)
+
+
+@router.post("/me/password")
+def change_my_password(body: ChangePasswordIn, user: User = Depends(session_user)) -> dict[str, Any]:
+    try:
+        fresh = _users().change_password(user.username, body.current_password, body.new_password)
+    except UserError as exc:
+        raise HTTPException(exc.status, str(exc)) from exc
+    return _session_out(fresh)  # older tokens are revoked; the caller continues with this one
 
 
 @router.get("/banks")
@@ -149,9 +204,21 @@ def reject(version: str, body: RejectIn, user: User = Depends(admin_user)) -> di
 @router.get("/admin/audit")
 def audit(limit: int = 30, user: User = Depends(admin_user)) -> dict[str, Any]:
     log = _service().registry.audit
-    own = [e for e in log.entries() if e["data"].get("bank") in (user.bank, None)
-           or user.bank in (e["data"].get("rule_versions") or {})]
+
+    def visible(e: dict[str, Any]) -> bool:
+        d = e["data"]
+        if d.get("scope") == "users":  # account events: only those about this bank's staff
+            return d.get("bank") == user.bank
+        return d.get("bank") in (user.bank, None) or user.bank in (d.get("rule_versions") or {})
+
+    own = [e for e in log.entries() if visible(e)]
     return {"verify": log.verify(), "entries": own[-limit:]}
+
+
+@router.get("/admin/team")
+def bank_team(user: User = Depends(admin_user)) -> dict[str, Any]:
+    """Read-only list of this bank's administrators (accounts are managed by the platform administrator)."""
+    return {"bank": user.bank, "users": _users().list_users(role="admin", bank=user.bank)}
 
 
 @router.get("/admin/samples/{name}")
@@ -204,3 +271,126 @@ def portal_recommend(body: PortalProfileIn, user: User = Depends(customer_user))
         return _service().recommend_form(profile, body.existing_banks, user.username)
     except RegistryError as exc:
         raise _bad_request(exc) from exc
+
+
+# ---- platform administrator: user management --------------------------------------------------
+def _user_error(exc: UserError) -> HTTPException:
+    return HTTPException(exc.status, str(exc))
+
+
+@router.get("/users/meta")
+def users_meta(user: User = Depends(platform_admin_user)) -> dict[str, Any]:
+    """Choices and rules the user-management screen needs."""
+    return {"roles": [{"code": r, "label": ROLE_LABELS[r]} for r in ROLES],
+            "banks": [{"code": b, "name": BANK_DISPLAY[b]} for b in BANKS],
+            "password_policy": {"min_length": MIN_PASSWORD_LENGTH, "classes": 3,
+                                "text": f"At least {MIN_PASSWORD_LENGTH} characters with three of: lower-case, "
+                                        "upper-case, digit, symbol; must not contain the username or be a common password."},
+            "lockout": {"max_failed": MAX_FAILED_LOGINS}}
+
+
+@router.get("/users")
+def list_users(role: str | None = None, bank: str | None = None, status: str | None = None, q: str = "",
+               user: User = Depends(platform_admin_user)) -> dict[str, Any]:
+    users = _users()
+    return {"summary": users.summary(), "users": users.list_users(role or None, bank or None, status or None, q)}
+
+
+class UserCreateIn(BaseModel):
+    username: str = Field(min_length=3, max_length=32)
+    full_name: str = Field(min_length=1, max_length=80)
+    role: Literal["platform_admin", "admin", "customer"]
+    bank: str | None = None
+    email: str = Field(default="", max_length=120)
+    employee_id: str = Field(default="", max_length=32)
+    password: str | None = Field(default=None, max_length=128)  # empty = generate a temporary password
+    must_change_password: bool = True
+
+
+@router.post("/users", status_code=201)
+def create_user(body: UserCreateIn, user: User = Depends(platform_admin_user)) -> dict[str, Any]:
+    try:
+        record, temp = _users().create(user.username, body.username, body.role, body.bank, body.full_name, body.email,
+                                       body.employee_id, body.password or None, body.must_change_password)
+    except UserError as exc:
+        raise _user_error(exc) from exc
+    return {"user": record, "temporary_password": temp}
+
+
+@router.get("/users/activity")
+def users_activity(limit: int = 50, user: User = Depends(platform_admin_user)) -> dict[str, Any]:
+    log = _service().registry.audit
+    entries = [e for e in log.entries() if e["data"].get("scope") == "users"]
+    return {"verify": log.verify(), "entries": entries[-limit:]}
+
+
+@router.post("/users/check-password")
+def check_password(body: dict[str, str], user: User = Depends(session_user)) -> dict[str, Any]:
+    problems = password_problems(str(body.get("password", "")), str(body.get("username", "")))
+    return {"ok": not problems, "problems": problems}
+
+
+@router.get("/users/{username}")
+def get_user(username: str, user: User = Depends(platform_admin_user)) -> dict[str, Any]:
+    try:
+        return _users().public(username)
+    except UserError as exc:
+        raise _user_error(exc) from exc
+
+
+class UserUpdateIn(BaseModel):
+    full_name: str | None = Field(default=None, max_length=80)
+    email: str | None = Field(default=None, max_length=120)
+    employee_id: str | None = Field(default=None, max_length=32)
+    role: Literal["platform_admin", "admin", "customer"] | None = None
+    bank: str | None = None
+
+
+@router.patch("/users/{username}")
+def update_user(username: str, body: UserUpdateIn, user: User = Depends(platform_admin_user)) -> dict[str, Any]:
+    try:
+        return _users().update(user.username, username, body.full_name, body.email, body.employee_id, body.role,
+                               body.bank)
+    except UserError as exc:
+        raise _user_error(exc) from exc
+
+
+class StatusIn(BaseModel):
+    reason: str = Field(default="", max_length=200)
+
+
+@router.post("/users/{username}/disable")
+def disable_user(username: str, body: StatusIn, user: User = Depends(platform_admin_user)) -> dict[str, Any]:
+    try:
+        return _users().set_status(user.username, username, False, body.reason)
+    except UserError as exc:
+        raise _user_error(exc) from exc
+
+
+@router.post("/users/{username}/enable")
+def enable_user(username: str, body: StatusIn, user: User = Depends(platform_admin_user)) -> dict[str, Any]:
+    try:
+        return _users().set_status(user.username, username, True, body.reason)
+    except UserError as exc:
+        raise _user_error(exc) from exc
+
+
+class ResetIn(BaseModel):
+    password: str | None = Field(default=None, max_length=128)
+
+
+@router.post("/users/{username}/reset-password")
+def reset_password(username: str, body: ResetIn, user: User = Depends(platform_admin_user)) -> dict[str, Any]:
+    try:
+        record, temp = _users().reset_password(user.username, username, body.password or None)
+    except UserError as exc:
+        raise _user_error(exc) from exc
+    return {"user": record, "temporary_password": temp}
+
+
+@router.post("/users/{username}/unlock")
+def unlock_user(username: str, user: User = Depends(platform_admin_user)) -> dict[str, Any]:
+    try:
+        return _users().unlock(user.username, username)
+    except UserError as exc:
+        raise _user_error(exc) from exc

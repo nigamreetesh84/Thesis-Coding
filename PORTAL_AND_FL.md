@@ -35,12 +35,16 @@ Axis has no rules until its administrator uploads and approves them.
 
 | User | Password | Role |
 |---|---|---|
+| platform_admin | platform@123 | platform administrator (manages users; cannot touch rules) |
 | admin_sbi | sbi@123 | SBI employee |
 | admin_hdfc | hdfc@123 | HDFC employee |
 | admin_axis | axis@123 | Axis employee |
 | customer | customer@123 | customer |
 
 Change one: `python -m src.portal.auth set-password admin_axis NewPass123`
+
+Further bank users and customers are registered on the **User management** page
+(log in as `platform_admin`). See section 2b.
 
 To reset the demo, stop the server and delete `data/portal/`, `artifacts/portal/` and
 `config/portal_users.json`.
@@ -64,11 +68,50 @@ To reset the demo, stop the server and delete `data/portal/`, `artifacts/portal/
    CIBIL 300 by the injected sentence; the review step is where a human catches it
    (and RQ5 measures whether the LLM extractors obey it).
 
+## 2b. User management (round 7b, 25 Nov 2026)
+
+Log in as `platform_admin` → **User management**.
+
+1. The page shows account counts, the three partner banks (live rule version and number of
+   active administrators; a warning if a bank has none) and every account.
+2. **Register user** (or *+ Add Axis user* on a bank card): username, full name, role,
+   bank, employee ID, e-mail. A temporary password is generated and shown **once**.
+3. Log out, log in as the new user with the temporary password → the portal forces a
+   password change → the new Axis administrator lands on the Axis upload screen and can
+   upload, review and approve exactly like `admin_axis`. Their uploads are recorded under
+   their own username, and the *Axis Bank team* panel lists them.
+4. Back as `platform_admin`: **Disable** `admin_hdfc` with a reason → any open HDFC session
+   is signed out at once; the HDFC card warns "no active administrator". *Enable* restores it.
+5. Five wrong passwords lock an account for 15 minutes; it shows as *locked* and the
+   platform administrator can **Unlock** it. **Reset password** issues a new temporary one.
+6. *Account activity* lists every change from the hash-chained audit log (chain intact).
+
+| Control | How |
+|---|---|
+| Roles and separation of duties | `platform_admin` manages accounts but cannot upload/approve rules; bank `admin` is limited to one bank; `customer` |
+| Passwords | PBKDF2-SHA256 (200k iterations, per-user salt); policy: 10+ characters, 3 of 4 classes, not the username, not common; temporary passwords shown once |
+| First login | accounts created or reset by an administrator must set their own password before any other action (server-enforced) |
+| Lock-out | 5 failed logins → 15-minute lock; unknown usernames cost the same hash time (no username probing) |
+| Session revocation | tokens carry a per-user version; disable, reset, role or bank change bump it → old tokens fail immediately |
+| Safety guards | cannot disable or demote yourself; the last active platform administrator cannot be disabled or demoted |
+| No deletion | accounts are deactivated, never deleted, so past uploads/approvals stay attributable |
+| Audit | `user_created`, `user_updated`, `user_disabled`, `user_enabled`, `password_reset`, `password_changed`, `user_unlocked`, `account_locked` in the same hash chain; personal fields logged by name only, passwords never |
+| Data | `config/portal_users.json`, written atomically under a lock; existing round-7 files are migrated (a `platform_admin` is added) |
+
+API (platform administrator only unless stated): `GET /portal/users` (filters `q`, `role`,
+`bank`, `status`), `POST /portal/users`, `GET|PATCH /portal/users/{u}`,
+`POST /portal/users/{u}/disable|enable|reset-password|unlock`, `GET /portal/users/activity`,
+`GET /portal/users/meta`; any user: `GET /portal/me`, `POST /portal/me/password`;
+bank administrator: `GET /portal/admin/team`.
+
+Limitations (state in the thesis): no MFA or SSO, no password history or expiry, JSON file
+instead of a directory service; temporary passwords are handed over out of band.
+
 ## 3. What was built
 
 | Part | Files |
 |---|---|
-| Role logins (PBKDF2 hashes, signed tokens) | `src/portal/auth.py` |
+| Role logins (PBKDF2 hashes, signed tokens) and user management | `src/portal/auth.py`, `src/portal/routes.py` |
 | PDF / Markdown / text ingest → one rule per chunk | `src/portal/ingest.py` |
 | Extractors: frozen LLM prompt, and a rule-based baseline | `src/portal/rule_extractor.py` |
 | Versioned, approved knowledge base; diff; corrections | `src/portal/registry.py` |
@@ -78,7 +121,7 @@ To reset the demo, stop the server and delete `data/portal/`, `artifacts/portal/
 | Portal UI | `dashboard/portal.html` |
 | Axis documents and answer key (**verify before use**) | `data/axis/`, `data/portal_samples/`, `src/portal/samples.py` |
 | Federated learning (RQ5) | `fl/`, `notebooks/fl_colab.ipynb` |
-| Tests (16 new; 124 total pass) | `tests/test_portal.py`, `tests/test_fl.py` |
+| Tests (16 new in round 7, 14 in round 7b; 138 total pass) | `tests/test_portal.py`, `tests/test_fl.py`, `tests/test_users.py` |
 
 Design choices to state in Chapter 3:
 - **Human in the loop**: only employee-approved values reach customers; no LLM sits

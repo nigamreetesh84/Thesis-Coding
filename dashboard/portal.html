@@ -19,8 +19,9 @@
   button { background:var(--blue); color:#fff; border:none; border-radius:7px; padding:.55rem .95rem; cursor:pointer; font-size:.9rem; }
   button.secondary { background:#343a4a; } button.danger { background:var(--red); } button.ok { background:var(--green); }
   button:disabled { opacity:.45; cursor:not-allowed; }
-  .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; }
-  .pill { display:inline-block; padding:.1rem .5rem; border-radius:999px; font-size:.72rem; font-weight:600; background:#343a4a; }
+  .topbar { display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:1rem; }
+  #who:not(.hidden) { display:flex; gap:.4rem; align-items:center; flex-shrink:0; white-space:nowrap; }
+  .pill { display:inline-block; white-space:nowrap; padding:.1rem .5rem; border-radius:999px; font-size:.72rem; font-weight:600; background:#343a4a; }
   .pill.approved { background:var(--green); } .pill.draft { background:var(--amber); color:#111; } .pill.rejected { background:var(--red); } .pill.superseded { background:#495057; }
   table { width:100%; border-collapse:collapse; font-size:.83rem; }
   th, td { text-align:left; padding:.4rem .45rem; border-bottom:1px solid var(--line); vertical-align:top; }
@@ -43,6 +44,32 @@
   .hidden { display:none; }
   .changes li { font-size:.82rem; }
   code { font-size:.78rem; color:#a5d8ff; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:.7rem; margin-bottom:1rem; }
+  .stat { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:.75rem .9rem; }
+  .stat .n { font-size:1.55rem; font-weight:700; line-height:1.1; } .stat .l { color:var(--muted); font-size:.76rem; margin-top:.15rem; }
+  .stat.warn-b { border-color:var(--amber); } .stat.bad-b { border-color:var(--red); }
+  .bankcards { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:.7rem; }
+  .bankcard { border:1px solid var(--line); border-radius:10px; padding:.75rem .9rem; background:var(--bg); }
+  .bankcard h3 { margin:0 0 .3rem; } .bankcard .warn { margin-top:.3rem; }
+  .filters { display:flex; gap:.6rem; flex-wrap:wrap; align-items:flex-end; margin-bottom:.7rem; }
+  .filters input[type=search] { min-width:220px; }
+  .pill.active { background:var(--green); } .pill.disabled { background:#495057; } .pill.locked { background:var(--red); }
+  .pill.mustchange { background:var(--amber); color:#111; }
+  .pill.role-platform_admin { background:#5f3dc4; } .pill.role-admin { background:#1864ab; } .pill.role-customer { background:#343a4a; }
+  .actions { display:flex; gap:.3rem; flex-wrap:wrap; } .actions button { padding:.3rem .55rem; font-size:.76rem; }
+  .uname { font-weight:600; } .you { font-size:.68rem; color:var(--muted); margin-left:.3rem; }
+  dialog { background:var(--panel); color:var(--text); border:1px solid var(--line); border-radius:12px; padding:1.2rem; width:min(560px,94vw); }
+  dialog::backdrop { background:rgba(0,0,0,.6); }
+  dialog form.grid { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; }
+  dialog form.grid .full { grid-column:1 / -1; }
+  dialog .btns { display:flex; justify-content:flex-end; gap:.5rem; margin-top:1rem; grid-column:1 / -1; }
+  .req > .t::after { content:" *"; color:#ff8787; }
+  .hint { color:var(--muted); font-size:.74rem; }
+  .policy li { font-size:.78rem; color:var(--muted); } .policy li.ok { color:#69db7c; }
+  .secret { font-family:ui-monospace,monospace; font-size:1.1rem; background:var(--bg); border:1px dashed var(--amber);
+            padding:.6rem .8rem; border-radius:8px; display:flex; justify-content:space-between; align-items:center; gap:.6rem; }
+  .empty { text-align:center; color:var(--muted); padding:1rem; }
+  .checkrow { flex-direction:row !important; align-items:center; gap:.45rem !important; }
 </style>
 </head>
 <body>
@@ -52,7 +79,7 @@
     <h1>Eligibility-Aware Credit Card Recommender – Bank Portal</h1>
     <div class="muted">SBI · HDFC · Axis Bank. Bank tie-up simulated for the thesis prototype; no customer details are stored.</div>
   </div>
-  <div id="who" class="hidden"><span id="who-text" class="muted"></span> <button class="secondary" id="logout">Log out</button></div>
+  <div id="who" class="hidden"><span id="who-text" class="muted"></span> <button class="secondary" id="chpw-open">Change password</button> <button class="secondary" id="logout">Log out</button></div>
 </div>
 
 <!-- LOGIN -->
@@ -64,8 +91,24 @@
     <button id="login-btn">Log in</button>
   </div>
   <div id="login-err" class="err"></div>
-  <p class="muted small">Demo accounts: <code>admin_sbi</code>, <code>admin_hdfc</code>, <code>admin_axis</code> (bank employees) and
-    <code>customer</code>. Passwords are in PORTAL_AND_FL.md.</p>
+  <p class="muted small">Demo accounts: <code>platform_admin</code> (manages users), <code>admin_sbi</code>, <code>admin_hdfc</code>,
+    <code>admin_axis</code> (bank employees) and <code>customer</code>. Passwords are in PORTAL_AND_FL.md.
+    Five wrong passwords lock an account for 15 minutes.</p>
+</div>
+
+<!-- FORCED PASSWORD CHANGE -->
+<div id="mustchange-view" class="panel hidden" style="max-width:520px">
+  <h2>Choose a new password</h2>
+  <p class="muted small">Your account was created or reset by the platform administrator with a temporary password.
+    Choose your own password to continue.</p>
+  <form id="mc-form" class="row" style="flex-direction:column;align-items:stretch">
+    <label>Temporary password <input type="password" id="mc-current" autocomplete="current-password" required /></label>
+    <label>New password <input type="password" id="mc-new" autocomplete="new-password" required /></label>
+    <ul class="policy" id="mc-policy"></ul>
+    <label>Repeat new password <input type="password" id="mc-new2" autocomplete="new-password" required /></label>
+    <div class="row"><button type="submit">Save and continue</button></div>
+  </form>
+  <div id="mc-err" class="err"></div>
 </div>
 
 <!-- ADMIN -->
@@ -107,11 +150,106 @@
   </div>
 
   <div class="panel">
+    <h2 id="team-title">Bank team</h2>
+    <p class="muted small">Administrators who can upload and approve rules for your bank. Accounts are registered and
+      deactivated by the platform administrator.</p>
+    <div id="team"></div>
+  </div>
+
+  <div class="panel">
     <h2>Audit log <span id="audit-status"></span></h2>
     <p class="muted small">Every upload, approval and customer decision is appended to a hash-chained log; editing any past entry breaks the chain.</p>
     <table id="audit"></table>
   </div>
 </div>
+
+<!-- PLATFORM ADMIN: USER MANAGEMENT -->
+<div id="platform-view" class="hidden">
+  <div class="stats" id="stats"></div>
+
+  <div class="panel">
+    <h2>Partner banks</h2>
+    <div class="bankcards" id="bankcards"></div>
+  </div>
+
+  <div class="panel">
+    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:.6rem">
+      <h2 style="margin:0">User management</h2>
+      <button id="new-user-btn">+ Register user</button>
+    </div>
+    <div class="filters">
+      <label>Search <input type="search" id="flt-q" placeholder="username, name, e-mail, employee ID" /></label>
+      <label>Role <select id="flt-role"><option value="">All roles</option></select></label>
+      <label>Bank <select id="flt-bank"><option value="">All banks</option></select></label>
+      <label>Status <select id="flt-status"><option value="">Any status</option><option value="active">Active</option>
+        <option value="disabled">Disabled</option><option value="locked">Locked</option></select></label>
+      <button class="secondary" id="flt-clear">Clear</button>
+    </div>
+    <div id="users-table"></div>
+    <div id="users-err" class="err"></div>
+    <p class="muted small" style="margin-top:.6rem">Accounts are deactivated, not deleted, so every upload, approval and
+      audit entry stays attributable. Disabling a user, resetting a password or changing a role or bank signs that user
+      out everywhere immediately.</p>
+  </div>
+
+  <div class="panel">
+    <h2>Account activity <span id="activity-status"></span></h2>
+    <p class="muted small">User-management events from the hash-chained audit log. Personal details are recorded by field
+      name only; passwords are never logged.</p>
+    <table id="activity"></table>
+  </div>
+</div>
+
+<dialog id="user-dlg">
+  <h2 id="user-dlg-title">Register user</h2>
+  <form id="user-form" class="grid" autocomplete="off">
+    <label class="req"><span class="t">Username</span><input id="uf-username" required maxlength="32" placeholder="e.g. priya.axis" />
+      <span class="hint">3-32 characters: a-z 0-9 . _ - (starts with a letter)</span></label>
+    <label class="req"><span class="t">Full name</span><input id="uf-name" required maxlength="80" /></label>
+    <label class="req"><span class="t">Role</span><select id="uf-role"></select></label>
+    <label id="uf-bank-wrap" class="req"><span class="t">Bank</span><select id="uf-bank"></select></label>
+    <label id="uf-emp-wrap" class="req"><span class="t">Employee ID</span><input id="uf-emp" maxlength="32" placeholder="bank staff ID" /></label>
+    <label>E-mail <input id="uf-email" type="email" maxlength="120" /></label>
+    <div id="uf-pw-block" class="full">
+      <label class="checkrow"><input type="checkbox" id="uf-gen" checked /> Generate a temporary password (recommended)</label>
+      <label id="uf-pw-wrap" class="hidden" style="margin-top:.4rem">Initial password <input id="uf-pw" type="password" autocomplete="new-password" /></label>
+      <ul class="policy hidden" id="uf-policy"></ul>
+      <label class="checkrow" style="margin-top:.4rem"><input type="checkbox" id="uf-must" checked /> User must choose a new password at first login</label>
+    </div>
+    <div id="uf-note" class="full hint"></div>
+    <div id="uf-err" class="full err"></div>
+    <div class="btns"><button type="button" class="secondary" data-close>Cancel</button><button type="submit" id="uf-submit">Register</button></div>
+  </form>
+</dialog>
+
+<dialog id="confirm-dlg">
+  <h2 id="cf-title"></h2>
+  <p id="cf-text" class="muted"></p>
+  <label id="cf-reason-wrap">Reason (recorded in the audit log) <input id="cf-reason" maxlength="200" /></label>
+  <div id="cf-err" class="err"></div>
+  <div class="btns" style="display:flex;justify-content:flex-end;gap:.5rem;margin-top:1rem">
+    <button class="secondary" data-close>Cancel</button><button id="cf-ok" class="danger">Confirm</button></div>
+</dialog>
+
+<dialog id="secret-dlg">
+  <h2 id="sc-title">Temporary password</h2>
+  <p class="muted small" id="sc-text"></p>
+  <div class="secret"><span id="sc-pw"></span><button class="secondary" id="sc-copy">Copy</button></div>
+  <p class="warn" style="margin-top:.6rem">Shown once only. Give it to the user through a separate channel; they must change it at first login.</p>
+  <div style="display:flex;justify-content:flex-end;margin-top:.8rem"><button data-close>Done</button></div>
+</dialog>
+
+<dialog id="chpw-dlg">
+  <h2>Change my password</h2>
+  <form id="chpw-form" style="display:flex;flex-direction:column;gap:.6rem">
+    <label>Current password <input type="password" id="cp-current" autocomplete="current-password" required /></label>
+    <label>New password <input type="password" id="cp-new" autocomplete="new-password" required /></label>
+    <ul class="policy" id="cp-policy"></ul>
+    <label>Repeat new password <input type="password" id="cp-new2" autocomplete="new-password" required /></label>
+    <div id="cp-err" class="err"></div><div id="cp-ok" class="good"></div>
+    <div class="btns" style="display:flex;justify-content:flex-end;gap:.5rem"><button type="button" class="secondary" data-close>Close</button><button type="submit">Change password</button></div>
+  </form>
+</dialog>
 
 <!-- CUSTOMER -->
 <div id="customer-view" class="hidden">
@@ -163,7 +301,7 @@ async function api(path, opts = {}) {
   if (!res.ok) {
     let detail = res.statusText;
     try { const j = await res.json(); detail = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail); } catch (e) {}
-    if (res.status === 401 && session) { logout(); }
+    if (res.status === 401 && session && !path.endsWith("/me/password")) { logout(); }
     throw new Error(detail);
   }
   const type = res.headers.get("content-type") || "";
@@ -186,15 +324,23 @@ function logout() {
   try { sessionStorage.removeItem("portal"); } catch (e) {}
   show();
 }
+const ROLE_LABEL = { platform_admin: "Platform administrator", admin: "Bank administrator", customer: "Customer" };
+const BANK_NAME = { SBI: "SBI", HDFC: "HDFC", AXIS: "Axis Bank" };
 function show() {
-  const role = session ? session.role : null;
+  const must = !!(session && session.must_change_password);
+  const role = session && !must ? session.role : null;
   $("login-view").classList.toggle("hidden", !!session);
   $("who").classList.toggle("hidden", !session);
+  $("mustchange-view").classList.toggle("hidden", !must);
+  $("chpw-open").classList.toggle("hidden", must);
   $("admin-view").classList.toggle("hidden", role !== "admin");
+  $("platform-view").classList.toggle("hidden", role !== "platform_admin");
   $("customer-view").classList.toggle("hidden", role !== "customer");
   if (!session) return;
-  $("who-text").textContent = session.role === "admin" ? `${session.username} · ${session.bank} administrator` : `${session.username} · customer`;
-  if (role === "admin") loadAdmin(); else loadCustomer();
+  const name = session.full_name ? `${session.full_name} (${session.username})` : session.username;
+  $("who-text").textContent = session.role === "admin" ? `${name} · ${session.bank} administrator` : `${name} · ${ROLE_LABEL[session.role] || session.role}`;
+  if (must) { $("mc-current").focus(); return; }
+  if (role === "admin") loadAdmin(); else if (role === "platform_admin") loadPlatform(); else loadCustomer();
 }
 
 // ---------------- admin ----------------
@@ -212,7 +358,16 @@ async function loadAdmin() {
     const blob = await res.blob();
     const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = a.dataset.s; link.click();
   });
-  await Promise.all([loadVersions(), loadAudit()]);
+  await Promise.all([loadVersions(), loadAudit(), loadTeam()]);
+}
+
+async function loadTeam() {
+  const data = await api("/portal/admin/team");
+  $("team-title").textContent = `${BANK_NAME[data.bank] || data.bank} team`;
+  $("team").innerHTML = `<table><tr><th>User</th><th>Name</th><th>Employee ID</th><th>Status</th><th>Last login</th></tr>` +
+    data.users.map(u => `<tr><td class="uname">${esc(u.username)}${u.username === session.username ? "<span class='you'>(you)</span>" : ""}</td>
+      <td>${esc(u.full_name)}</td><td>${esc(u.employee_id || "—")}</td><td>${statusPills(u)}</td>
+      <td class="small">${esc(fmtTime(u.last_login))}</td></tr>`).join("") + "</table>";
 }
 
 async function loadVersions() {
@@ -325,6 +480,7 @@ async function loadAudit() {
 }
 function summary(e) {
   const d = e.data;
+  if (d.scope === "users") return `account ${d.target}${d.changes ? " · " + Object.keys(d.changes).join(", ") : ""}${d.reason ? " · " + d.reason : ""}`;
   if (e.event === "customer_decision") return `banks ${d.banks.join("/")} · ${d.n_eligible}/${d.n_cards} eligible · versions ${Object.entries(d.rule_versions).map(([b, v]) => b + " " + v.version).join(", ")}`;
   if (e.event === "rule_approval") return `${d.bank} ${d.version} · ${d.n_changes} change(s) · ${d.n_corrections} correction(s)`;
   return `${d.bank || ""} ${d.version || ""} ${d.filename || ""}`;
@@ -383,6 +539,234 @@ function renderResults(data) {
       <p>${esc(c.sentence)}</p><div class="meta">rule ${esc(c.cited_chunk_id || "n/a")} · ${esc(c.bank)} ${esc(c.rule_version || "")}</div></div>`;
   }).join("");
   $("results-panel").scrollIntoView({ behavior: "smooth" });
+}
+
+// ---------------- shared: dialogs, password policy, change password ----------------
+document.querySelectorAll("dialog [data-close]").forEach(b => b.addEventListener("click", (e) => { e.preventDefault(); b.closest("dialog").close(); }));
+function fmtTime(t) { if (!t) return "never"; const d = new Date(t.replace(/(\d{2})(\d{2})$/, "$1:$2")); return isNaN(d) ? t : d.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }); }
+function statusPills(u) {
+  return `<span class="pill ${u.status === "active" ? "active" : "disabled"}">${esc(u.status)}</span>` +
+    (u.locked ? ` <span class="pill locked" title="until ${esc(u.locked_until)}">locked</span>` : "") +
+    (u.must_change_password ? ` <span class="pill mustchange" title="must set a new password at next login">temp password</span>` : "");
+}
+function policyCheck(pw, username) {
+  const classes = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^A-Za-z0-9]/].filter(r => r.test(pw)).length;
+  return [
+    [pw.length >= 10, "At least 10 characters"],
+    [classes >= 3, "Three of: lower-case, upper-case, digit, symbol"],
+    [!username || !pw.toLowerCase().includes(username.toLowerCase()), "Does not contain the username"],
+  ];
+}
+function renderPolicy(el, pw, username) {
+  el.innerHTML = policyCheck(pw, username).map(([ok, t]) => `<li class="${ok ? "ok" : ""}">${ok ? "✓" : "•"} ${esc(t)}</li>`).join("");
+  return policyCheck(pw, username).every(([ok]) => ok);
+}
+function attachPolicy(input, list, userFn) { const f = () => renderPolicy(list, input.value, userFn()); input.addEventListener("input", f); f(); }
+attachPolicy($("mc-new"), $("mc-policy"), () => session ? session.username : "");
+attachPolicy($("cp-new"), $("cp-policy"), () => session ? session.username : "");
+attachPolicy($("uf-pw"), $("uf-policy"), () => $("uf-username").value.trim());
+
+async function changePassword(current, pw, pw2, errEl) {
+  errEl.textContent = "";
+  if (pw !== pw2) { errEl.textContent = "The two new passwords do not match."; return false; }
+  try {
+    const fresh = await api("/portal/me/password", { method: "POST", json: { current_password: current, new_password: pw } });
+    session = fresh; try { sessionStorage.setItem("portal", JSON.stringify(session)); } catch (e) {}
+    return true;
+  } catch (e) { errEl.textContent = e.message; return false; }
+}
+$("mc-form").onsubmit = async (e) => {
+  e.preventDefault();
+  if (await changePassword($("mc-current").value, $("mc-new").value, $("mc-new2").value, $("mc-err"))) { $("mc-form").reset(); show(); }
+};
+$("chpw-open").onclick = () => { $("chpw-form").reset(); $("cp-err").textContent = ""; $("cp-ok").textContent = ""; renderPolicy($("cp-policy"), "", session.username); $("chpw-dlg").showModal(); };
+$("chpw-form").onsubmit = async (e) => {
+  e.preventDefault();
+  if (await changePassword($("cp-current").value, $("cp-new").value, $("cp-new2").value, $("cp-err"))) {
+    $("chpw-form").reset(); $("cp-ok").textContent = "Password changed. Other sessions of this account were signed out.";
+  }
+};
+
+// ---------------- platform administrator: user management ----------------
+let meta = null, users = [], editing = null;
+async function loadPlatform() {
+  if (!meta) {
+    meta = await api("/portal/users/meta");
+    $("flt-role").innerHTML = `<option value="">All roles</option>` + meta.roles.map(r => `<option value="${r.code}">${esc(r.label)}</option>`).join("");
+    $("flt-bank").innerHTML = `<option value="">All banks</option>` + meta.banks.map(b => `<option value="${b.code}">${esc(b.name)}</option>`).join("");
+    $("uf-role").innerHTML = meta.roles.map(r => `<option value="${r.code}">${esc(r.label)}</option>`).join("");
+    $("uf-bank").innerHTML = meta.banks.map(b => `<option value="${b.code}">${esc(b.name)}</option>`).join("");
+  }
+  await Promise.all([loadUsers(), loadActivity()]);
+}
+function filters() {
+  const p = new URLSearchParams();
+  [["q", "flt-q"], ["role", "flt-role"], ["bank", "flt-bank"], ["status", "flt-status"]].forEach(([k, id]) => { if ($(id).value) p.set(k, $(id).value); });
+  return p.toString();
+}
+let qTimer = null;
+$("flt-q").addEventListener("input", () => { clearTimeout(qTimer); qTimer = setTimeout(loadUsers, 250); });
+["flt-role", "flt-bank", "flt-status"].forEach(id => $(id).addEventListener("change", loadUsers));
+$("flt-clear").onclick = () => { ["flt-q", "flt-role", "flt-bank", "flt-status"].forEach(id => $(id).value = ""); loadUsers(); };
+
+async function loadUsers() {
+  $("users-err").textContent = "";
+  try {
+    const [data, banks] = await Promise.all([api("/portal/users?" + filters()), api("/portal/banks")]);
+    users = data.users; renderStats(data.summary); renderBanks(data.summary, banks); renderUsers();
+  } catch (e) { $("users-err").textContent = e.message; }
+}
+function renderStats(s) {
+  const tile = (n, l, cls = "") => `<div class="stat ${cls}"><div class="n">${esc(n)}</div><div class="l">${esc(l)}</div></div>`;
+  $("stats").innerHTML = tile(s.total, "accounts") + tile(s.active, "active") + tile(s.by_role.admin, "bank administrators") +
+    tile(s.by_role.customer, "customers") + tile(s.disabled, "disabled") +
+    tile(s.locked, "locked out", s.locked ? "bad-b" : "") + tile(s.must_change_password, "awaiting first login", s.must_change_password ? "warn-b" : "");
+}
+function renderBanks(s, banks) {
+  $("bankcards").innerHTML = banks.map(b => {
+    const c = s.by_bank[b.code] || { admins: 0, active_admins: 0 };
+    return `<div class="bankcard"><h3>${esc(b.name)}</h3>
+      <div class="muted small">${b.active_version ? `Live rules ${esc(b.active_version)} · ${esc(b.cards.length)} cards` : "No approved rules yet"}</div>
+      <div style="margin-top:.35rem">${esc(c.active_admins)} active administrator(s)${c.admins > c.active_admins ? ` <span class="muted small">(${c.admins - c.active_admins} disabled)</span>` : ""}</div>
+      ${c.active_admins === 0 ? `<div class="warn">⚠ No active administrator: this bank cannot update its rules.</div>` : ""}
+      <button class="secondary" style="margin-top:.5rem;padding:.3rem .6rem;font-size:.78rem" data-addbank="${esc(b.code)}">+ Add ${esc(b.name)} user</button></div>`;
+  }).join("");
+  document.querySelectorAll("[data-addbank]").forEach(btn => btn.onclick = () => openUserForm(null, btn.dataset.addbank));
+}
+function renderUsers() {
+  if (!users.length) { $("users-table").innerHTML = `<div class="empty">No accounts match these filters.</div>`; return; }
+  $("users-table").innerHTML = `<table><tr><th>User</th><th>Role</th><th>Bank</th><th>Employee ID</th><th>Status</th><th>Last login</th><th>Created</th><th>Actions</th></tr>` +
+    users.map(u => {
+      const me = u.username === session.username;
+      return `<tr><td><span class="uname">${esc(u.username)}</span>${me ? "<span class='you'>(you)</span>" : ""}
+          <div class="muted small">${esc(u.full_name)}${u.email ? " · " + esc(u.email) : ""}</div></td>
+        <td><span class="pill role-${esc(u.role)}">${esc(ROLE_LABEL[u.role] || u.role)}</span></td>
+        <td>${esc(u.bank ? BANK_NAME[u.bank] || u.bank : "—")}</td><td>${esc(u.employee_id || "—")}</td>
+        <td>${statusPills(u)}${u.status === "disabled" && u.disabled_reason ? `<div class="muted small">${esc(u.disabled_reason)}</div>` : ""}</td>
+        <td class="small" style="white-space:nowrap">${esc(fmtTime(u.last_login))}</td>
+        <td class="small" style="white-space:nowrap">${esc(fmtTime(u.created_at))}<div class="muted small">by ${esc(u.created_by)}</div></td>
+        <td><div class="actions">
+          <button class="secondary" data-act="edit" data-u="${esc(u.username)}">Edit</button>
+          ${me ? "" : `<button class="secondary" data-act="reset" data-u="${esc(u.username)}">Reset password</button>`}
+          ${u.locked ? `<button class="secondary" data-act="unlock" data-u="${esc(u.username)}">Unlock</button>` : ""}
+          ${me ? "" : (u.status === "active" ? `<button class="danger" data-act="disable" data-u="${esc(u.username)}">Disable</button>`
+                                            : `<button class="ok" data-act="enable" data-u="${esc(u.username)}">Enable</button>`)}
+        </div></td></tr>`;
+    }).join("") + "</table>";
+  document.querySelectorAll("[data-act]").forEach(b => b.onclick = () => userAction(b.dataset.act, users.find(u => u.username === b.dataset.u)));
+}
+
+// register / edit form
+function syncRoleFields() {
+  const isAdmin = $("uf-role").value === "admin";
+  $("uf-bank-wrap").classList.toggle("hidden", !isAdmin);
+  $("uf-emp-wrap").classList.toggle("req", isAdmin);
+  $("uf-note").textContent = { admin: "Bank administrators upload and approve eligibility rules for their bank only.",
+    platform_admin: "Platform administrators manage accounts; they cannot upload or approve bank rules (separation of duties).",
+    customer: "Customers compare cards; their requests are not stored." }[$("uf-role").value] || "";
+}
+$("uf-role").addEventListener("change", syncRoleFields);
+$("uf-gen").addEventListener("change", () => {
+  const manual = !$("uf-gen").checked;
+  $("uf-pw-wrap").classList.toggle("hidden", !manual); $("uf-policy").classList.toggle("hidden", !manual);
+});
+$("new-user-btn").onclick = () => openUserForm(null);
+function openUserForm(u, presetBank) {
+  editing = u; $("user-form").reset(); $("uf-err").textContent = "";
+  $("user-dlg-title").textContent = u ? `Edit ${u.username}` : "Register user";
+  $("uf-submit").textContent = u ? "Save changes" : "Register";
+  $("uf-username").disabled = !!u; $("uf-pw-block").classList.toggle("hidden", !!u);
+  $("uf-pw-wrap").classList.add("hidden"); $("uf-policy").classList.add("hidden");
+  $("uf-role").disabled = !!(u && u.username === session.username);
+  if (u) {
+    $("uf-username").value = u.username; $("uf-name").value = u.full_name || ""; $("uf-role").value = u.role;
+    $("uf-bank").value = u.bank || meta.banks[0].code; $("uf-emp").value = u.employee_id || ""; $("uf-email").value = u.email || "";
+  } else {
+    $("uf-role").value = "admin"; $("uf-bank").value = presetBank || meta.banks[0].code;
+  }
+  syncRoleFields();
+  $("user-dlg").showModal(); (u ? $("uf-name") : $("uf-username")).focus();
+}
+$("user-form").onsubmit = async (e) => {
+  e.preventDefault(); $("uf-err").textContent = "";
+  const role = $("uf-role").value;
+  const body = { full_name: $("uf-name").value.trim(), email: $("uf-email").value.trim(), employee_id: $("uf-emp").value.trim(),
+                 role, bank: role === "admin" ? $("uf-bank").value : null };
+  try {
+    if (editing) {
+      const changingAccess = body.role !== editing.role || (body.bank || null) !== (editing.bank || null);
+      await api("/portal/users/" + encodeURIComponent(editing.username), { method: "PATCH", json: body });
+      $("user-dlg").close();
+      if (changingAccess) flash(`${editing.username}'s access changed; they have been signed out and must log in again.`);
+    } else {
+      body.username = $("uf-username").value.trim().toLowerCase();
+      body.must_change_password = $("uf-must").checked;
+      if (!$("uf-gen").checked) {
+        if (!renderPolicy($("uf-policy"), $("uf-pw").value, body.username)) { $("uf-err").textContent = "The password does not meet the policy."; return; }
+        body.password = $("uf-pw").value;
+      }
+      const out = await api("/portal/users", { method: "POST", json: body });
+      $("user-dlg").close();
+      if (out.temporary_password) showSecret(out.user, out.temporary_password, "registered");
+    }
+    await Promise.all([loadUsers(), loadActivity()]);
+  } catch (err) { $("uf-err").textContent = err.message; }
+};
+function showSecret(u, pw, what) {
+  $("sc-title").textContent = what === "registered" ? `${u.username} registered` : `Password reset for ${u.username}`;
+  $("sc-text").textContent = `${u.full_name} · ${ROLE_LABEL[u.role]}${u.bank ? " · " + (BANK_NAME[u.bank] || u.bank) : ""}`;
+  $("sc-pw").textContent = pw; $("sc-copy").textContent = "Copy";
+  $("secret-dlg").showModal();
+}
+$("sc-copy").onclick = async () => { try { await navigator.clipboard.writeText($("sc-pw").textContent); $("sc-copy").textContent = "Copied"; } catch (e) { $("sc-copy").textContent = "Select and copy"; } };
+$("secret-dlg").addEventListener("close", () => { $("sc-pw").textContent = ""; });
+function flash(msg) { $("users-err").innerHTML = `<span class="good">${esc(msg)}</span>`; setTimeout(() => { if ($("users-err").textContent === msg) $("users-err").textContent = ""; }, 6000); }
+
+function confirmAction(title, text, withReason, okLabel, danger, run) {
+  $("cf-title").textContent = title; $("cf-text").textContent = text; $("cf-err").textContent = "";
+  $("cf-reason").value = ""; $("cf-reason-wrap").classList.toggle("hidden", !withReason);
+  $("cf-ok").textContent = okLabel; $("cf-ok").className = danger ? "danger" : "ok";
+  $("cf-ok").onclick = async () => {
+    try { await run($("cf-reason").value.trim()); $("confirm-dlg").close(); await Promise.all([loadUsers(), loadActivity()]); }
+    catch (e) { $("cf-err").textContent = e.message; }
+  };
+  $("confirm-dlg").showModal();
+}
+function userAction(act, u) {
+  const path = "/portal/users/" + encodeURIComponent(u.username);
+  if (act === "edit") return openUserForm(u);
+  if (act === "disable") return confirmAction(`Disable ${u.username}?`,
+    `${u.full_name} will be signed out at once and cannot log in until re-enabled. Their past uploads and approvals stay in the audit log.`,
+    true, "Disable account", true, (reason) => api(path + "/disable", { method: "POST", json: { reason } }));
+  if (act === "enable") return confirmAction(`Enable ${u.username}?`, `${u.full_name} will be able to log in again with their current password.`,
+    true, "Enable account", false, (reason) => api(path + "/enable", { method: "POST", json: { reason } }));
+  if (act === "unlock") return confirmAction(`Unlock ${u.username}?`, "Clears the failed-login lock so the user can try again now.",
+    false, "Unlock", false, () => api(path + "/unlock", { method: "POST" }));
+  if (act === "reset") return confirmAction(`Reset password for ${u.username}?`,
+    "A new temporary password is generated and shown once. The user is signed out and must choose a new password at next login.",
+    false, "Reset password", true, async () => { const out = await api(path + "/reset-password", { method: "POST", json: {} });
+      setTimeout(() => showSecret(out.user, out.temporary_password, "reset"), 50); });
+}
+
+async function loadActivity() {
+  const data = await api("/portal/users/activity?limit=40");
+  $("activity-status").innerHTML = data.verify.ok ? `<span class="pill approved">chain intact · ${data.verify.entries} entries</span>`
+    : `<span class="pill rejected">TAMPERING DETECTED at entry ${esc(data.verify.first_bad_index)}</span>`;
+  const label = { user_created: "registered", user_updated: "updated", user_disabled: "disabled", user_enabled: "enabled",
+                  password_reset: "password reset", password_changed: "changed own password", user_unlocked: "unlocked",
+                  account_locked: "locked (failed logins)" };
+  const detail = (e) => {
+    const d = e.data;
+    if (e.event === "user_updated") return Object.entries(d.changes).map(([k, v]) => Array.isArray(v) ? `${k}: ${v[0] ?? "—"} → ${v[1] ?? "—"}` : `${k} changed`).join(", ") + (d.sessions_revoked ? " · sessions revoked" : "");
+    if (e.event === "user_created") return `${ROLE_LABEL[d.role] || d.role}${d.bank ? " · " + d.bank : ""}${d.must_change_password ? " · temporary password" : ""}`;
+    if (d.reason) return "reason: " + d.reason;
+    return d.bank || "";
+  };
+  $("activity").innerHTML = data.entries.length ? `<tr><th>#</th><th>Time</th><th>Action</th><th>Account</th><th>By</th><th>Details</th><th>Entry hash</th></tr>` +
+    data.entries.slice().reverse().map(e => `<tr><td>${esc(e.index)}</td><td class="small">${esc(fmtTime(e.time))}</td>
+      <td>${esc(label[e.event] || e.event)}</td><td class="uname">${esc(e.data.target)}</td><td>${esc(e.actor)}</td>
+      <td class="small">${esc(detail(e))}</td><td><code>${esc(e.entry_hash.slice(0, 12))}…</code></td></tr>`).join("")
+    : `<tr><td class="empty">No account changes yet.</td></tr>`;
 }
 
 // restore a session after a page reload
