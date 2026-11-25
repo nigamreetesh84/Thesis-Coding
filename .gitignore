@@ -21,3 +21,11 @@ mydev/
 data/portal/
 config/portal_users.json
 results_fl/
+# round 8 distributed FL: generated data, models, certificates, Flower state
+deploy/nodes/
+deploy/models/
+deploy/certs/*.crt
+deploy/certs/*.key
+deploy/flwr_home/apps/
+deploy/flwr_home/*.db
+deploy/flwr_home/source

@@ -1,0 +1,47 @@
+# Flower App definition for the distributed rule-extractor experiment (RQ5).
+# The code lives in the repository package fl.distributed, so every process
+# (SuperLink, SuperNodes, flwr CLI) runs with PYTHONPATH=<repo root>.
+#
+#   flwr run fl/distributed/app deployment --stream                    # full settings (Run 1)
+#   flwr run fl/distributed/app deployment --run-config fl/distributed/app/quick.toml --stream
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rq5-distributed-fl"
+version = "1.0.0"
+description = "Distributed FedAvg over LoRA adapters for the bank rule extractor (thesis RQ5)"
+dependencies = ["flwr>=1.45,<2"]  # torch, transformers, peft come from requirements.txt (runtime install is disabled)
+
+[tool.flwr.app]
+publisher = "reetesh-nigam"
+
+[tool.flwr.app.components]
+serverapp = "fl.distributed.server_app:app"
+clientapp = "fl.distributed.client_app:app"
+
+# Defaults = the Run 1 settings (results_fl/run1). Override with --run-config.
+[tool.flwr.app.config]
+arm = "fedavg"
+model-name = "Qwen/Qwen2.5-1.5B-Instruct"
+quantize-4bit = true
+lora-r = 16
+lora-alpha = 32
+lora-dropout = 0.05
+lr = 0.0002
+batch-size = 1
+grad-accum = 8
+num-server-rounds = 5
+local-steps = 15
+max-len = 1024
+max-new-tokens = 320
+gen-batch = 8
+seed = 7
+eval-limit = 0
+min-nodes = 3
+round-timeout = 3600
+server-eval = true
+out-dir = "results_fl/distributed"
+eval-dir = "deploy/nodes/server/eval"

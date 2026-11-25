@@ -1,0 +1,14 @@
+# Offline smoke test: tiny random model saved by `python -m fl.distributed.tiny_model` (no download).
+model-name = "deploy/models/tiny-qwen2"
+quantize-4bit = false
+lora-r = 4
+lora-alpha = 8
+num-server-rounds = 2
+local-steps = 2
+batch-size = 1
+grad-accum = 1
+max-len = 1200
+max-new-tokens = 8
+gen-batch = 4
+eval-limit = 1
+out-dir = "results_fl/distributed_tiny"

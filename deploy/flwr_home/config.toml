@@ -1,0 +1,13 @@
+# Flower CLI connection settings (used with FLWR_HOME=deploy/flwr_home).
+[superlink]
+default = "deployment"
+
+# local processes or docker compose (SuperLink HTTP API on localhost:8000)
+[superlink.deployment]
+address = "127.0.0.1:8000"
+insecure = true
+
+# same, with TLS (run deploy/certs/make_certs.sh first; paths relative to the repo root)
+[superlink.deployment-tls]
+address = "127.0.0.1:8000"
+root-certificates = "deploy/certs/ca.crt"
