@@ -1,0 +1,9 @@
+# D1: the `quick` preset of fl.run_fl (0.5B model, 3 rounds x 8 local steps, 6 cards per test set)
+# so the distributed run can be compared with a simulated run of the same settings.
+model-name = "Qwen/Qwen2.5-0.5B-Instruct"
+num-server-rounds = 3
+local-steps = 8
+batch-size = 2
+grad-accum = 4
+eval-limit = 6
+out-dir = "results_fl/distributed_quick"

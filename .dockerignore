@@ -1,0 +1,11 @@
+# keep the build context small: no data of any bank, no results, no archives
+deploy/nodes
+deploy/models
+deploy/certs/*.key
+results_fl
+results
+artifacts*
+*.zip
+*.docx
+.git
+notebooks
