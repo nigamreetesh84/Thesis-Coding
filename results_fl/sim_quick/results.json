@@ -1,0 +1,451 @@
+{
+  "config": {
+    "model_name": "Qwen/Qwen2.5-0.5B-Instruct",
+    "quantize_4bit": true,
+    "lora_r": 16,
+    "lora_alpha": 32,
+    "lora_dropout": 0.05,
+    "target_modules": [
+      "q_proj",
+      "k_proj",
+      "v_proj",
+      "o_proj"
+    ],
+    "lr": 0.0002,
+    "batch_size": 1,
+    "grad_accum": 8,
+    "rounds": 3,
+    "local_steps": 8,
+    "max_len": 1024,
+    "max_new_tokens": 320,
+    "gen_batch": 8,
+    "seed": 7,
+    "arms": [
+      "fedavg"
+    ],
+    "lobo_bank": "AXIS",
+    "clients": [
+      "SBI",
+      "HDFC",
+      "AXIS"
+    ],
+    "eval_limit": 6
+  },
+  "arms": {
+    "fedavg": {
+      "sets": {
+        "synthetic_test/AXIS": {
+          "n_cards": 6,
+          "fields_correct": 28,
+          "fields_total": 30,
+          "field_accuracy": 0.9333333333333333,
+          "field_accuracy_ci95": [
+            0.787,
+            0.982
+          ],
+          "card_all_correct": 4,
+          "card_accuracy": 0.6666666666666666,
+          "card_accuracy_ci95": [
+            0.3,
+            0.903
+          ],
+          "json_valid_rate": 1.0,
+          "per_field_accuracy": {
+            "min_income": 0.8333333333333334,
+            "min_age": 1.0,
+            "min_cibil": 1.0,
+            "allowed_employment": 0.8333333333333334,
+            "relationship_required": 1.0
+          },
+          "unstated_thresholds": 2,
+          "hallucinated_unstated_thresholds": 0
+        },
+        "synthetic_test/HDFC": {
+          "n_cards": 6,
+          "fields_correct": 29,
+          "fields_total": 30,
+          "field_accuracy": 0.9666666666666667,
+          "field_accuracy_ci95": [
+            0.833,
+            0.994
+          ],
+          "card_all_correct": 5,
+          "card_accuracy": 0.8333333333333334,
+          "card_accuracy_ci95": [
+            0.436,
+            0.97
+          ],
+          "json_valid_rate": 1.0,
+          "per_field_accuracy": {
+            "min_income": 1.0,
+            "min_age": 1.0,
+            "min_cibil": 1.0,
+            "allowed_employment": 0.8333333333333334,
+            "relationship_required": 1.0
+          },
+          "unstated_thresholds": 3,
+          "hallucinated_unstated_thresholds": 0
+        },
+        "synthetic_test/SBI": {
+          "n_cards": 6,
+          "fields_correct": 29,
+          "fields_total": 30,
+          "field_accuracy": 0.9666666666666667,
+          "field_accuracy_ci95": [
+            0.833,
+            0.994
+          ],
+          "card_all_correct": 5,
+          "card_accuracy": 0.8333333333333334,
+          "card_accuracy_ci95": [
+            0.436,
+            0.97
+          ],
+          "json_valid_rate": 1.0,
+          "per_field_accuracy": {
+            "min_income": 1.0,
+            "min_age": 1.0,
+            "min_cibil": 1.0,
+            "allowed_employment": 0.8333333333333334,
+            "relationship_required": 1.0
+          },
+          "unstated_thresholds": 2,
+          "hallucinated_unstated_thresholds": 0
+        },
+        "heldout_style/AXIS": {
+          "n_cards": 6,
+          "fields_correct": 24,
+          "fields_total": 30,
+          "field_accuracy": 0.8,
+          "field_accuracy_ci95": [
+            0.627,
+            0.905
+          ],
+          "card_all_correct": 1,
+          "card_accuracy": 0.16666666666666666,
+          "card_accuracy_ci95": [
+            0.03,
+            0.564
+          ],
+          "json_valid_rate": 1.0,
+          "per_field_accuracy": {
+            "min_income": 0.5,
+            "min_age": 1.0,
+            "min_cibil": 0.8333333333333334,
+            "allowed_employment": 0.8333333333333334,
+            "relationship_required": 0.8333333333333334
+          },
+          "unstated_thresholds": 2,
+          "hallucinated_unstated_thresholds": 0
+        },
+        "heldout_style/HDFC": {
+          "n_cards": 6,
+          "fields_correct": 22,
+          "fields_total": 30,
+          "field_accuracy": 0.7333333333333333,
+          "field_accuracy_ci95": [
+            0.556,
+            0.858
+          ],
+          "card_all_correct": 2,
+          "card_accuracy": 0.3333333333333333,
+          "card_accuracy_ci95": [
+            0.097,
+            0.7
+          ],
+          "json_valid_rate": 1.0,
+          "per_field_accuracy": {
+            "min_income": 0.5,
+            "min_age": 1.0,
+            "min_cibil": 1.0,
+            "allowed_employment": 0.6666666666666666,
+            "relationship_required": 0.5
+          },
+          "unstated_thresholds": 3,
+          "hallucinated_unstated_thresholds": 0
+        },
+        "heldout_style/SBI": {
+          "n_cards": 6,
+          "fields_correct": 25,
+          "fields_total": 30,
+          "field_accuracy": 0.8333333333333334,
+          "field_accuracy_ci95": [
+            0.664,
+            0.927
+          ],
+          "card_all_correct": 2,
+          "card_accuracy": 0.3333333333333333,
+          "card_accuracy_ci95": [
+            0.097,
+            0.7
+          ],
+          "json_valid_rate": 1.0,
+          "per_field_accuracy": {
+            "min_income": 0.6666666666666666,
+            "min_age": 1.0,
+            "min_cibil": 1.0,
+            "allowed_employment": 0.8333333333333334,
+            "relationship_required": 0.6666666666666666
+          },
+          "unstated_thresholds": 2,
+          "hallucinated_unstated_thresholds": 0
+        },
+        "real_thesis": {
+          "n_cards": 6,
+          "fields_correct": 27,
+          "fields_total": 30,
+          "field_accuracy": 0.9,
+          "field_accuracy_ci95": [
+            0.744,
+            0.965
+          ],
+          "card_all_correct": 3,
+          "card_accuracy": 0.5,
+          "card_accuracy_ci95": [
+            0.188,
+            0.812
+          ],
+          "json_valid_rate": 1.0,
+          "per_field_accuracy": {
+            "min_income": 1.0,
+            "min_age": 1.0,
+            "min_cibil": 1.0,
+            "allowed_employment": 0.5,
+            "relationship_required": 1.0
+          },
+          "unstated_thresholds": 0,
+          "hallucinated_unstated_thresholds": 0
+        },
+        "real_thesis_hard": {
+          "n_cards": 6,
+          "fields_correct": 22,
+          "fields_total": 30,
+          "field_accuracy": 0.7333333333333333,
+          "field_accuracy_ci95": [
+            0.556,
+            0.858
+          ],
+          "card_all_correct": 0,
+          "card_accuracy": 0.0,
+          "card_accuracy_ci95": [
+            0.0,
+            0.39
+          ],
+          "json_valid_rate": 1.0,
+          "per_field_accuracy": {
+            "min_income": 0.16666666666666666,
+            "min_age": 1.0,
+            "min_cibil": 1.0,
+            "allowed_employment": 0.6666666666666666,
+            "relationship_required": 0.8333333333333334
+          },
+          "unstated_thresholds": 0,
+          "hallucinated_unstated_thresholds": 0
+        },
+        "real_axis": {
+          "n_cards": 4,
+          "fields_correct": 17,
+          "fields_total": 20,
+          "field_accuracy": 0.85,
+          "field_accuracy_ci95": [
+            0.64,
+            0.948
+          ],
+          "card_all_correct": 2,
+          "card_accuracy": 0.5,
+          "card_accuracy_ci95": [
+            0.15,
+            0.85
+          ],
+          "json_valid_rate": 1.0,
+          "per_field_accuracy": {
+            "min_income": 0.5,
+            "min_age": 1.0,
+            "min_cibil": 1.0,
+            "allowed_employment": 1.0,
+            "relationship_required": 0.75
+          },
+          "unstated_thresholds": 5,
+          "hallucinated_unstated_thresholds": 0
+        },
+        "injection_axis": {
+          "n_cards": 4,
+          "fields_correct": 16,
+          "fields_total": 20,
+          "field_accuracy": 0.8,
+          "field_accuracy_ci95": [
+            0.584,
+            0.919
+          ],
+          "card_all_correct": 1,
+          "card_accuracy": 0.25,
+          "card_accuracy_ci95": [
+            0.046,
+            0.699
+          ],
+          "json_valid_rate": 1.0,
+          "per_field_accuracy": {
+            "min_income": 0.5,
+            "min_age": 1.0,
+            "min_cibil": 0.75,
+            "allowed_employment": 1.0,
+            "relationship_required": 0.75
+          },
+          "unstated_thresholds": 5,
+          "hallucinated_unstated_thresholds": 1
+        }
+      },
+      "losses": [
+        {
+          "round": 1,
+          "client_losses": {
+            "SBI": [
+              0.406325563788414,
+              0.19516412541270256,
+              0.1195898363366723,
+              0.08663334138691425,
+              0.08317169547080994,
+              0.07913007074967027,
+              0.06370199285447598,
+              0.04646255378611386
+            ],
+            "HDFC": [
+              0.3644845448434353,
+              0.19031819142401218,
+              0.16159974597394466,
+              0.11629862245172262,
+              0.08392794150859118,
+              0.07674345700070262,
+              0.07484207162633538,
+              0.07629610388539732
+            ],
+            "AXIS": [
+              0.3169955052435398,
+              0.2005035039037466,
+              0.15132765751332045,
+              0.1357361963018775,
+              0.08951053768396378,
+              0.09318509185686707,
+              0.09775596065446734,
+              0.07493088580667973
+            ]
+          },
+          "mean_last_loss": {
+            "SBI": 0.06309820579675336,
+            "HDFC": 0.07596054417081177,
+            "AXIS": 0.08862397943933804
+          }
+        },
+        {
+          "round": 2,
+          "client_losses": {
+            "SBI": [
+              0.05130610289052129,
+              0.052825673716142774,
+              0.037368350429460406,
+              0.02900574612431228,
+              0.03450094454456121,
+              0.022475633304566145,
+              0.017126062186434865,
+              0.012433658994268626
+            ],
+            "HDFC": [
+              0.06924914428964257,
+              0.09270962607115507,
+              0.07523264922201633,
+              0.0426938699092716,
+              0.06519948481582105,
+              0.059240841306746006,
+              0.04877873323857784,
+              0.03914970392361283
+            ],
+            "AXIS": [
+              0.04874150827527046,
+              0.07242440897971392,
+              0.0777360680513084,
+              0.062371252570301294,
+              0.0392849447671324,
+              0.036221402464434505,
+              0.043479149928316474,
+              0.02813410514499992
+            ]
+          },
+          "mean_last_loss": {
+            "SBI": 0.017345118161756545,
+            "HDFC": 0.04905642615631223,
+            "AXIS": 0.035944885845916964
+          }
+        },
+        {
+          "round": 3,
+          "client_losses": {
+            "SBI": [
+              0.017857756814919412,
+              0.03149476111866534,
+              0.0347389557864517,
+              0.0113035689573735,
+              0.014628698816522956,
+              0.014041967660887167,
+              0.008910528267733753,
+              0.005861022073077038
+            ],
+            "HDFC": [
+              0.03453739092219621,
+              0.05542941263411194,
+              0.031133380136452615,
+              0.03069086978211999,
+              0.038599380291998386,
+              0.02766174345742911,
+              0.02666561334626749,
+              0.017396474082488567
+            ],
+            "AXIS": [
+              0.03377591332537122,
+              0.028146308148279786,
+              0.021873441233765334,
+              0.028454903163947165,
+              0.026720393216237426,
+              0.016225566214416176,
+              0.032192569895414636,
+              0.01263012969866395
+            ]
+          },
+          "mean_last_loss": {
+            "SBI": 0.009604506000565985,
+            "HDFC": 0.02390794362872839,
+            "AXIS": 0.02034942193616492
+          }
+        }
+      ],
+      "seconds": 315.7,
+      "clients": [
+        "SBI",
+        "HDFC",
+        "AXIS"
+      ],
+      "bytes_per_upload": 8650752
+    }
+  },
+  "comparisons": {
+    "summary": {
+      "fedavg": {
+        "all_unseen": {
+          "fields_correct": 223,
+          "fields_total": 260,
+          "field_accuracy": 0.8576923076923076
+        },
+        "real_documents": {
+          "fields_correct": 66,
+          "fields_total": 80,
+          "field_accuracy": 0.825
+        },
+        "synthetic": {
+          "fields_correct": 157,
+          "fields_total": 180,
+          "field_accuracy": 0.8722222222222222
+        }
+      }
+    },
+    "pairs": []
+  }
+}

@@ -30,6 +30,8 @@
   .warn { color:var(--amber); font-size:.78rem; } .err { color:#ff8787; margin-top:.5rem; } .good { color:#69db7c; }
   .chunks { max-height:320px; overflow:auto; font-size:.78rem; background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:.5rem; }
   .chunk { margin-bottom:.6rem; } .chunk b { color:#a5d8ff; }
+    .what-to-change { border-left: 3px solid #ffd43b; padding-left: .5rem; color: #ffe8a3; }
+    .closest { margin-top: .8rem; color: #ffe8a3; }
   .grid2 { display:grid; grid-template-columns: 1.6fr 1fr; gap:1rem; }
   @media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } }
   .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:.8rem; }
@@ -536,8 +538,8 @@ function renderResults(data) {
     const cls = c.needs_review ? "needs-review" : (c.recommended ? "recommended" : "not-eligible");
     const badge = c.needs_review ? "CHECK WITH BANK" : (c.recommended ? "ELIGIBLE" : "NOT ELIGIBLE");
     return `<div class="card ${cls}"><span class="badge">${badge}</span><h3>${esc(c.bank_name)} — ${esc(c.card)}</h3>
-      <p>${esc(c.sentence)}</p><div class="meta">rule ${esc(c.cited_chunk_id || "n/a")} · ${esc(c.bank)} ${esc(c.rule_version || "")}</div></div>`;
-  }).join("");
+      <p>${esc(c.sentence)}</p>${c.what_to_change ? `<p class="what-to-change"><b>What needs to change:</b> ${esc(c.what_to_change.replace(/^To qualify: /, ""))}</p>` : ""}<div class="meta">rule ${esc(c.cited_chunk_id || "n/a")} · ${esc(c.bank)} ${esc(c.rule_version || "")}</div></div>`;
+  }).join("") + (data.closest ? `<p class="closest"><b>${esc(data.closest)}</b></p>` : "");
   $("results-panel").scrollIntoView({ behavior: "smooth" });
 }
 

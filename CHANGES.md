@@ -136,3 +136,16 @@ The frozen path (src/model.py, src/prompts.py, data/rule_docs*, POST /recommend,
 | `src/api.py` | `UserStore` writes to the portal audit chain | One tamper-evident log for rules, decisions and accounts |
 | `dashboard/portal.html` | User management page (stats, partner banks, filters, register/edit/disable/enable/reset/unlock, account activity), forced password change, change-my-password, bank team panel | |
 | `tests/test_users.py` (new) | 14 tests (138 total) | |
+
+## Round 9 (26 Nov 2026): counterfactual "what needs to change"
+
+| File | Change | Why |
+|---|---|---|
+| `src/domain/counterfactual.py` (new) | For each declined card, the smallest change to the applicant's facts that makes it eligible: income gap (yearly and monthly), CIBIL points, open an account, age (time only), employment (fixed, not advised). Plus the closest card the applicant can reach by their own actions. | Counterfactual explanations (Wachter et al., 2018); supervisor's FinCard-XAI framework, module 7. |
+| `src/domain/entities.py` | `Change` dataclass; `Decision.changes` (default empty) | Carries the counterfactual with the decision. |
+| `src/domain/requirements.py` | `decide()` attaches the counterfactual AFTER the verdict | Verdict, reason and citation are unchanged; needs-review decisions get none. |
+| `src/nl_interface.py`, `src/api.py`, `src/portal/service.py`, `dashboard/*.html` | `what_to_change` per card, `changes` list, `closest` card | Shown to the applicant; written by code, never by the LLM. |
+| `evaluation/run_counterfactual_eval.py` (new) | Checks every counterfactual against the independent eligibility oracle | 120 profiles x 8 cards: verdicts 960/960 unchanged; validity, minimality, sparsity 738/738 each; 255/738 declines reachable by the applicant's own action. |
+| `tests/test_counterfactual.py` (new) | 10 tests | Gaps, kinds, unstated rules, needs-review, all gold declines, NL text, API. |
+
+No prompt, extraction or decision logic changed, so all earlier results stand.

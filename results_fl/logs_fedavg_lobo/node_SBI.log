@@ -1,0 +1,57 @@
+[92mINFO [0m:      Starting Flower SuperNode
+[93mWARNING [0m:   Option `--insecure` was set. Starting insecure channel to 127.0.0.1:8000.
+INFO:     Started server process [5757]
+INFO:     Waiting for application startup.
+[92mINFO [0m:      FastAPI lifespan: startup
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:9101 (Press CTRL+C to quit)
+[92mINFO [0m:      SuperNode ID: 4174519920644056175
+[92mINFO [0m:      Starting Flower SuperExec
+[92mINFO [0m:      
+[92mINFO [0m:      [RUN 4438116738338653576]
+[92mINFO [0m:      Receiving: train message (ID: 164900ef5ab8a60936fd87f5b60b31b8a5697505cd8f8f449d6e407cd6a22f43)
+[92mINFO [0m:      Start `flwr-clientapp` process
+[92mINFO [0m:      Received successfully
+Loading weights:   0%|          | 0/290 [00:00<?, ?it/s]Loading weights:   1%|          | 3/290 [00:00<00:17, 16.70it/s]Loading weights:  20%|██        | 59/290 [00:00<00:00, 255.38it/s]Loading weights:  36%|███▌      | 104/290 [00:00<00:00, 330.25it/s]Loading weights:  57%|█████▋    | 164/290 [00:00<00:00, 425.05it/s]Loading weights:  78%|███████▊  | 227/290 [00:00<00:00, 493.06it/s]Loading weights: 100%|██████████| 290/290 [00:00<00:00, 425.93it/s]
+/usr/local/lib/python3.13/dist-packages/torch/_dynamo/eval_frame.py:1548: UserWarning: torch.utils.checkpoint: the use_reentrant parameter should be passed explicitly. Starting in PyTorch 2.9, calling checkpoint without use_reentrant will raise an exception. use_reentrant=False is recommended, but if you need to preserve the current default behavior, you can pass use_reentrant=True. Refer to docs for more details on the differences between the two variants.
+  return fn(*args, **kwargs)
+[92mINFO [0m:      
+[92mINFO [0m:      [RUN 4438116738338653576]
+[92mINFO [0m:      Sending: train message (ID: 883b209eca06f5a134cde28eaf3bb3a865bc06d517d199e7b188913a49b2e74a)
+[92mINFO [0m:      
+[92mINFO [0m:      Sent successfully
+[92mINFO [0m:      
+[92mINFO [0m:      [RUN 4438116738338653576]
+[92mINFO [0m:      Receiving: train message (ID: 9a096e8d5e8187f298f38d221bee5675477a79136f35a4718d2c1db1a757a3c2)
+[92mINFO [0m:      Start `flwr-clientapp` process
+[92mINFO [0m:      Received successfully
+Loading weights:   0%|          | 0/290 [00:00<?, ?it/s]Loading weights:   0%|          | 1/290 [00:00<00:53,  5.37it/s]Loading weights:   1%|          | 3/290 [00:00<00:31,  9.11it/s]Loading weights:  20%|█▉        | 57/290 [00:00<00:01, 181.19it/s]Loading weights:  31%|███       | 89/290 [00:00<00:00, 224.39it/s]Loading weights:  44%|████▍     | 128/290 [00:00<00:00, 275.81it/s]Loading weights:  56%|█████▌    | 161/290 [00:00<00:00, 288.84it/s]Loading weights:  68%|██████▊   | 197/290 [00:00<00:00, 306.43it/s]Loading weights:  87%|████████▋ | 251/290 [00:00<00:00, 375.77it/s]Loading weights: 100%|██████████| 290/290 [00:01<00:00, 285.13it/s]
+/usr/local/lib/python3.13/dist-packages/torch/_dynamo/eval_frame.py:1548: UserWarning: torch.utils.checkpoint: the use_reentrant parameter should be passed explicitly. Starting in PyTorch 2.9, calling checkpoint without use_reentrant will raise an exception. use_reentrant=False is recommended, but if you need to preserve the current default behavior, you can pass use_reentrant=True. Refer to docs for more details on the differences between the two variants.
+  return fn(*args, **kwargs)
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[92mINFO [0m:      
+[92mINFO [0m:      [RUN 4438116738338653576]
+[92mINFO [0m:      Sending: train message (ID: eb7349c585ce451055fd29e7f43a50b6f6bf6187450955396c6e09a73d10e482)
+[92mINFO [0m:      
+[92mINFO [0m:      Sent successfully
+[92mINFO [0m:      
+[92mINFO [0m:      [RUN 4438116738338653576]
+[92mINFO [0m:      Receiving: train message (ID: 787665d771e70beffc9722f974812b7997809720c3193f391d42f6f75c80c248)
+[92mINFO [0m:      Start `flwr-clientapp` process
+[92mINFO [0m:      Received successfully
+Loading weights:   0%|          | 0/290 [00:00<?, ?it/s]Loading weights:   1%|          | 3/290 [00:00<00:17, 16.88it/s]Loading weights:  20%|██        | 59/290 [00:00<00:00, 257.21it/s]Loading weights:  39%|███▉      | 113/290 [00:00<00:00, 361.56it/s]Loading weights:  59%|█████▉    | 171/290 [00:00<00:00, 436.15it/s]Loading weights:  77%|███████▋  | 224/290 [00:00<00:00, 467.18it/s]Loading weights: 100%|██████████| 290/290 [00:00<00:00, 426.55it/s]
+/usr/local/lib/python3.13/dist-packages/torch/_dynamo/eval_frame.py:1548: UserWarning: torch.utils.checkpoint: the use_reentrant parameter should be passed explicitly. Starting in PyTorch 2.9, calling checkpoint without use_reentrant will raise an exception. use_reentrant=False is recommended, but if you need to preserve the current default behavior, you can pass use_reentrant=True. Refer to docs for more details on the differences between the two variants.
+  return fn(*args, **kwargs)
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[92mINFO [0m:      
+[92mINFO [0m:      [RUN 4438116738338653576]
+[92mINFO [0m:      Sending: train message (ID: f7e880198df7be73aad8026a848324e83769711c036732754b911ab95fa30d50)
+[92mINFO [0m:      
+[92mINFO [0m:      Sent successfully
+[92mINFO [0m:      SuperExec terminated gracefully.
+[92mINFO [0m:      SuperNode terminated gracefully.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+[92mINFO [0m:      FastAPI lifespan: shutdown
+INFO:     Application shutdown complete.
+INFO:     Finished server process [5757]

@@ -42,6 +42,24 @@ class UserProfile:
 
 
 @dataclass(frozen=True)
+class Change:
+    """One change that would close a failed criterion (counterfactual explanation).
+
+    kind:
+      * "actionable": the applicant can act on it (income, CIBIL score, opening an account);
+      * "time": only time closes it (age below the minimum);
+      * "fixed": the card does not accept the applicant's employment type.
+    """
+
+    criterion: str  # income | age | cibil | employment | relationship
+    kind: str  # actionable | time | fixed
+    current: float | str | bool
+    required: float | str | bool
+    gap: float | None  # numeric shortfall (rupees a year, years, points); None for categorical criteria
+    text: str
+
+
+@dataclass(frozen=True)
 class Decision:
     """The recommendation outcome for a single bank/card pair."""
 
@@ -53,3 +71,6 @@ class Decision:
     # True when the system could not establish the card's requirements reliably
     # (extract_compare guard); such a decision is never a recommendation.
     needs_review: bool = False
+    # Counterfactual "what needs to change" for a declined card (src/domain/counterfactual.py).
+    # Computed after the decision from the same requirements; never changes the verdict.
+    changes: tuple[Change, ...] = ()

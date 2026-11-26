@@ -1,0 +1,46 @@
+[93mWARNING [0m:   Option `--insecure` was set. Starting insecure HTTP server with unencrypted communication (TLS disabled). Proceed only if you understand the risks.
+[93mWARNING [0m:   SuperNode authentication is disabled. The SuperLink will accept connections from any SuperNode.
+[92mINFO [0m:      Starting Flower SuperLink
+[92mINFO [0m:      Starting the SuperLink Runtime HTTP API on 127.0.0.1:8000.
+[92mINFO [0m:      Starting the SuperLink Control HTTP API on 127.0.0.1:8000.
+[92mINFO [0m:      Starting the SuperLink Fleet HTTP API on 127.0.0.1:8000.
+2026-11-26T01:07:04.009Z INFO [uvicorn.error] Started server process [2753]
+2026-11-26T01:07:04.009Z INFO [uvicorn.error] Waiting for application startup.
+[92mINFO [0m:      FastAPI lifespan: startup
+[92mINFO [0m:      SuperLinkLifespan: start
+2026-11-26T01:07:04.011Z INFO [uvicorn.error] Application startup complete.
+2026-11-26T01:07:04.013Z INFO [uvicorn.error] Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+[92mINFO [0m:      Starting Flower SuperExec
+2026-11-26T01:07:09.094Z INFO [uvicorn.access] 127.0.0.1:58684 - "POST /v1/fleet/register-node HTTP/1.1" 200
+[92mINFO [0m:      [Fleet.ActivateNode] Activated node_id=779296148482825172
+2026-11-26T01:07:09.117Z INFO [uvicorn.access] 127.0.0.1:58684 - "POST /v1/fleet/activate-node HTTP/1.1" 200
+2026-11-26T01:07:09.335Z INFO [uvicorn.access] 127.0.0.1:58702 - "POST /v1/fleet/register-node HTTP/1.1" 200
+[92mINFO [0m:      [Fleet.ActivateNode] Activated node_id=14315056745737302637
+2026-11-26T01:07:09.354Z INFO [uvicorn.access] 127.0.0.1:58702 - "POST /v1/fleet/activate-node HTTP/1.1" 200
+2026-11-26T01:07:09.473Z INFO [uvicorn.access] 127.0.0.1:58728 - "POST /v1/fleet/register-node HTTP/1.1" 200
+[92mINFO [0m:      [Fleet.ActivateNode] Activated node_id=12727883955200560448
+2026-11-26T01:07:09.492Z INFO [uvicorn.access] 127.0.0.1:58728 - "POST /v1/fleet/activate-node HTTP/1.1" 200
+2026-11-26T01:07:16.141Z INFO [uvicorn.access] 127.0.0.1:32814 - "POST /v1/control/start-run HTTP/1.1" 200
+[92mINFO [0m:      Started task 10235083131269146110 of run 14336244588808906131
+2026-11-26T01:07:18.249Z INFO [uvicorn.access] 127.0.0.1:32832 - "POST /v1/runtime/pull-task-input HTTP/1.1" 200
+[92mINFO [0m:      [Fleet.GetRun] Requesting `Run` for run_id=14336244588808906131
+2026-11-26T01:07:42.579Z INFO [uvicorn.access] 127.0.0.1:58702 - "POST /v1/fleet/get-run HTTP/1.1" 200
+[92mINFO [0m:      [Fleet.GetFab] Requesting FAB for fab_hash=a3d7ee0d9b595a2ef161b97c441c6329853e3a9bb1b4ec889b19c59861358e87
+2026-11-26T01:07:42.596Z INFO [uvicorn.access] 127.0.0.1:58702 - "POST /v1/fleet/get-fab HTTP/1.1" 200
+[92mINFO [0m:      [Fleet.GetRun] Requesting `Run` for run_id=14336244588808906131
+2026-11-26T01:07:42.825Z INFO [uvicorn.access] 127.0.0.1:58728 - "POST /v1/fleet/get-run HTTP/1.1" 200
+[92mINFO [0m:      [Fleet.GetFab] Requesting FAB for fab_hash=a3d7ee0d9b595a2ef161b97c441c6329853e3a9bb1b4ec889b19c59861358e87
+2026-11-26T01:07:42.910Z INFO [uvicorn.access] 127.0.0.1:58728 - "POST /v1/fleet/get-fab HTTP/1.1" 200
+[92mINFO [0m:      [Fleet.GetRun] Requesting `Run` for run_id=14336244588808906131
+2026-11-26T01:07:45.486Z INFO [uvicorn.access] 127.0.0.1:58684 - "POST /v1/fleet/get-run HTTP/1.1" 200
+[92mINFO [0m:      [Fleet.GetFab] Requesting FAB for fab_hash=a3d7ee0d9b595a2ef161b97c441c6329853e3a9bb1b4ec889b19c59861358e87
+2026-11-26T01:07:45.539Z INFO [uvicorn.access] 127.0.0.1:58684 - "POST /v1/fleet/get-fab HTTP/1.1" 200
+[92mINFO [0m:      Finished task 10235083131269146110 of run 14336244588808906131
+2026-11-26T01:16:15.443Z INFO [uvicorn.access] 127.0.0.1:44696 - "POST /v1/runtime/push-task-output HTTP/1.1" 200
+[92mINFO [0m:      SuperExec terminated gracefully.
+2026-11-26T01:16:46.600Z INFO [uvicorn.error] Shutting down
+2026-11-26T01:16:46.701Z INFO [uvicorn.error] Waiting for application shutdown.
+[92mINFO [0m:      SuperLinkLifespan: stop
+[92mINFO [0m:      FastAPI lifespan: shutdown
+2026-11-26T01:16:46.735Z INFO [uvicorn.error] Application shutdown complete.
+2026-11-26T01:16:46.735Z INFO [uvicorn.error] Finished server process [2753]

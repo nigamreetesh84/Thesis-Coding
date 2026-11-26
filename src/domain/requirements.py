@@ -305,7 +305,12 @@ def decide(profile: UserProfile, req: CardRequirements) -> Decision:
             "Eligible: the retrieved rules state no requirement that this applicant fails."
         )
         cited = req.sources.get("income") or req.sources.get("default") or next(iter(req.sources.values()), None)
-    return Decision(bank=req.bank, card=req.card, recommended=not failed, reason=reason, cited_chunk_id=cited)
+    decision = Decision(bank=req.bank, card=req.card, recommended=not failed, reason=reason, cited_chunk_id=cited)
+    # Counterfactual "what needs to change" (round 9): added after the verdict, from the same
+    # requirements; verdict, reason and citation are unchanged.
+    from src.domain.counterfactual import attach  # local import: counterfactual imports this module
+
+    return attach(decision, profile, req)
 
 
 # ---------------------------------------------------------------------------

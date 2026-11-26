@@ -146,10 +146,11 @@ class PortalService:
         cards = [{"bank": a.bank, "bank_name": BANK_DISPLAY.get(a.bank.upper(), a.bank), "card": a.card,
                   "recommended": a.recommended, "needs_review": a.needs_review, "sentence": a.sentence,
                   "source": a.source, "cited_chunk_id": a.cited_chunk_id,
+                  "what_to_change": a.what_to_change, "changes": [vars(c) for c in a.changes],
                   "rule_version": self.recommender.last_versions.get(a.bank, {}).get("version")}
                  for a in result.answers]
         out: dict[str, Any] = {"status": result.status, "understood": understood, "questions": result.questions,
-                               "answer_text": result.text, "cards": cards,
+                               "answer_text": result.text, "cards": cards, "closest": result.closest,
                                "rule_versions": self.recommender.last_versions if result.status == "ok" else {}}
         if result.status == "ok":
             out["audit_entry"] = self._log_decision(actor, u.to_profile(), cards)

@@ -44,6 +44,8 @@
     .card.not-eligible .badge { background: #c92a2a; }
     .card p { margin: 0.25rem 0; font-size: 0.85rem; color: #d3d6db; }
     .card .chunk { font-size: 0.75rem; color: #9aa0a6; }
+    .what-to-change { border-left: 3px solid #ffd43b; padding-left: .5rem; color: #ffe8a3; }
+    .closest { margin-top: .8rem; color: #ffe8a3; }
     #error { color: #ff8787; margin-top: 0.75rem; }
     .ask { background: #171923; border: 1px solid #2a2d3a; border-radius: 10px; padding: 1.25rem; margin-bottom: 1.25rem; }
     .ask textarea {
@@ -217,6 +219,7 @@
           <span class="badge">${review ? "CHECK WITH BANK" : (decision.recommended ? "RECOMMENDED" : "NOT ELIGIBLE")}</span>
           <h3>${decision.bank} — ${decision.card}</h3>
           <p>${decision.reason}</p>
+          ${decision.what_to_change ? `<p class="what-to-change"><b>What needs to change:</b> ${decision.what_to_change.replace(/^To qualify: /, "")}</p>` : ""}
           <p class="chunk">cited chunk: ${decision.cited_chunk_id ?? "n/a"}</p>
         `;
         container.appendChild(card);
@@ -265,7 +268,7 @@
           retrieved_k: "-",
           decisions: data.cards.map((c) => ({
             bank: c.bank, card: c.card, recommended: c.recommended, needs_review: c.needs_review,
-            reason: c.sentence, cited_chunk_id: c.cited_chunk_id,
+            reason: c.sentence, cited_chunk_id: c.cited_chunk_id, what_to_change: c.what_to_change,
           })),
         });
         refreshTelemetry();

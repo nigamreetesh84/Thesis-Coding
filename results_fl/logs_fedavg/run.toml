@@ -1,0 +1,9 @@
+model-name = "Qwen/Qwen2.5-0.5B-Instruct"
+num-server-rounds = 3
+local-steps = 8
+batch-size = 1
+grad-accum = 8
+eval-limit = 6
+out-dir = "results_fl/distributed_quick"
+arm = "fedavg"
+min-nodes = 3

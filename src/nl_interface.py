@@ -27,7 +27,9 @@ from dataclasses import dataclass, field, replace
 from typing import Any
 
 from src.domain.answer_guard import check_sentence
-from src.domain.entities import Decision, UserProfile
+from src.domain.counterfactual import closest_declined
+from src.domain.counterfactual import summary as cf_summary
+from src.domain.entities import Change, Decision, UserProfile
 from src.domain.query_parsing import ParsedQuery, short_yes_no
 from src.infrastructure.llm_client import LLMClient
 from src.model import RAGRecommender, _same_card, extract_json_items
@@ -106,6 +108,9 @@ class CardAnswer:
     guard: str
     cited_chunk_id: str | None
     engine_reason: str
+    # counterfactual for a declined card, written by deterministic code (never by the LLM)
+    what_to_change: str = ""
+    changes: tuple[Change, ...] = ()
 
 
 class AnswerWriter:
@@ -155,6 +160,8 @@ class AnswerWriter:
                     guard=why,
                     cited_chunk_id=d.cited_chunk_id,
                     engine_reason=d.reason,
+                    what_to_change=cf_summary(d.changes),
+                    changes=d.changes,
                 )
             )
         return answers
@@ -167,6 +174,7 @@ class NLResult:
     questions: list[str] = field(default_factory=list)
     answers: list[CardAnswer] = field(default_factory=list)
     retrieved_k: int = 0
+    closest: str | None = None  # declined card nearest to reach by the applicant's own actions
 
     @property
     def text(self) -> str:
@@ -178,6 +186,10 @@ class NLResult:
             mark = "?" if a.needs_review else ("✔" if a.recommended else "✘")
             cite = f"  [rule: {a.cited_chunk_id}]" if a.cited_chunk_id and not a.recommended else ""
             lines.append(f"{mark} {a.card}: {a.sentence}{cite}")
+            if a.what_to_change:
+                lines.append(f"   → {a.what_to_change}")
+        if self.closest:
+            lines += ["", self.closest]
         return "\n".join(lines)
 
 
@@ -230,6 +242,9 @@ class NLRecommender:
             return group, -scores.get((d.bank, d.card), 0.0)
 
         decisions = sorted(decisions, key=order)
+        near = closest_declined(decisions, profile)
+        closest = f"Closest card to reach: {near.card}. {cf_summary(near.changes)}" if near else None
         return NLResult(
-            status="ok", understood=parsed, answers=self.writer.write(decisions, profile), retrieved_k=retrieved_k
+            status="ok", understood=parsed, answers=self.writer.write(decisions, profile), retrieved_k=retrieved_k,
+            closest=closest,
         )

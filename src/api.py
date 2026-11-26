@@ -20,7 +20,8 @@ from pydantic import BaseModel, Field
 
 from config.settings import settings
 from src.application.recommend_service import RecommendService
-from src.domain.entities import UserProfile
+from src.domain.counterfactual import summary as cf_summary
+from src.domain.entities import Decision, UserProfile
 from src.domain.query_parsing import ParsedQuery
 from src.infrastructure.embedder import Embedder
 from src.infrastructure.llm_client import LocalLLMClient, StubLLM
@@ -47,6 +48,17 @@ class ProfileIn(BaseModel):
     banks: list[str] = Field(default_factory=lambda: ["SBI", "HDFC"])
 
 
+class ChangeOut(BaseModel):
+    """One counterfactual change for a declined card (what would make it eligible)."""
+
+    criterion: str
+    kind: str  # actionable | time | fixed
+    current: float | str | bool
+    required: float | str | bool
+    gap: float | None = None
+    text: str
+
+
 class DecisionOut(BaseModel):
     """A single card decision returned to the client."""
 
@@ -56,6 +68,16 @@ class DecisionOut(BaseModel):
     reason: str
     cited_chunk_id: str | None = None
     needs_review: bool = False
+    changes: list[ChangeOut] = Field(default_factory=list)
+    what_to_change: str = ""
+
+
+def _decision_out(d: Decision) -> DecisionOut:
+    return DecisionOut(
+        bank=d.bank, card=d.card, recommended=d.recommended, reason=d.reason,
+        cited_chunk_id=d.cited_chunk_id, needs_review=d.needs_review,
+        changes=[ChangeOut(**vars(c)) for c in d.changes], what_to_change=cf_summary(d.changes),
+    )
 
 
 class RecommendOut(BaseModel):
@@ -82,6 +104,8 @@ class CardAnswerOut(BaseModel):
     sentence: str
     source: str
     cited_chunk_id: str | None = None
+    what_to_change: str = ""
+    changes: list[ChangeOut] = Field(default_factory=list)
 
 
 class AskOut(BaseModel):
@@ -92,6 +116,7 @@ class AskOut(BaseModel):
     questions: list[str]
     answer_text: str
     cards: list[CardAnswerOut]
+    closest: str | None = None
     latency_ms: float
 
 
@@ -197,7 +222,7 @@ def recommend(profile_in: ProfileIn) -> RecommendOut:
 
     _telemetry.append(latency_ms)
     result = RecommendOut(
-        decisions=[DecisionOut(**vars(d)) for d in decisions],
+        decisions=[_decision_out(d) for d in decisions],
         latency_ms=latency_ms,
         retrieved_k=retrieved_k,
     )
@@ -249,9 +274,11 @@ def ask(ask_in: AskIn) -> AskOut:
             CardAnswerOut(
                 bank=a.bank, card=a.card, recommended=a.recommended, needs_review=a.needs_review,
                 sentence=a.sentence, source=a.source, cited_chunk_id=a.cited_chunk_id,
+                what_to_change=a.what_to_change, changes=[ChangeOut(**vars(c)) for c in a.changes],
             )
             for a in result.answers
         ],
+        closest=result.closest,
         latency_ms=latency_ms,
     )
 

@@ -1,0 +1,148 @@
+{
+  "requirements_source": "eligibility table (equals the grounded extraction, 40/40 fields)",
+  "profiles": 120,
+  "card_decisions": 960,
+  "declines": 738,
+  "verdict_agreement_with_oracle": 1.0,
+  "validity": {
+    "ok": 738,
+    "n": 738,
+    "rate": 1.0
+  },
+  "minimality": {
+    "ok": 738,
+    "n": 738,
+    "rate": 1.0
+  },
+  "sparsity": {
+    "ok": 738,
+    "n": 738,
+    "rate": 1.0
+  },
+  "changes_per_decline": {
+    "1": 223,
+    "2": 268,
+    "3": 178,
+    "4": 61,
+    "5": 8
+  },
+  "mean_changes_per_decline": 2.1368563685636857,
+  "changes_by_kind": {
+    "actionable": 994,
+    "time": 315,
+    "fixed": 268
+  },
+  "changes_by_criterion": {
+    "income": 471,
+    "age": 315,
+    "employment": 268,
+    "relationship": 162,
+    "cibil": 361
+  },
+  "declines_reachable_by_own_action": {
+    "n": 255,
+    "of": 738,
+    "rate": 0.34552845528455284
+  },
+  "profiles_with_a_decline": 118,
+  "profiles_with_a_reachable_closest_card": 80,
+  "problems": [],
+  "examples": [
+    {
+      "profile": {
+        "annual_income": 251531.13,
+        "age": 18,
+        "cibil": 801,
+        "employment": "business owner",
+        "existing_relationship": false,
+        "banks": [
+          "SBI",
+          "HDFC"
+        ]
+      },
+      "card": "SBI SimplyCLICK",
+      "reason": "Not eligible because annual income of ₹2,51,531 is below the ₹6,00,000 minimum; age 18 is below the minimum of 21; employment type 'business owner' is not one of the accepted types (salaried).",
+      "what_to_change": "Not reachable by changing income or score: the card accepts only salaried applicants, so a change in income or score alone would not make a business owner applicant eligible."
+    },
+    {
+      "profile": {
+        "annual_income": 731330.18,
+        "age": 30,
+        "cibil": 768,
+        "employment": "salaried",
+        "existing_relationship": true,
+        "banks": [
+          "SBI",
+          "HDFC"
+        ]
+      },
+      "card": "SBI Prime",
+      "reason": "Not eligible because annual income of ₹7,31,330 is below the ₹15,00,000 minimum.",
+      "what_to_change": "To qualify: raise annual income by ₹7,68,670 (about ₹64,056 a month) to the ₹15,00,000 minimum."
+    },
+    {
+      "profile": {
+        "annual_income": 287782.38,
+        "age": 22,
+        "cibil": 650,
+        "employment": "self-employed",
+        "existing_relationship": true,
+        "banks": [
+          "SBI",
+          "HDFC"
+        ]
+      },
+      "card": "SBI SimplyCLICK",
+      "reason": "Not eligible because annual income of ₹2,87,782 is below the ₹6,00,000 minimum; CIBIL score 650 is below the minimum of 750; employment type 'self-employed' is not one of the accepted types (salaried).",
+      "what_to_change": "Not reachable by changing income or score: the card accepts only salaried applicants, so a change in income or score alone would not make a self-employed applicant eligible."
+    },
+    {
+      "profile": {
+        "annual_income": 1511602.82,
+        "age": 18,
+        "cibil": 645,
+        "employment": "business owner",
+        "existing_relationship": false,
+        "banks": [
+          "SBI",
+          "HDFC"
+        ]
+      },
+      "card": "SBI SimplySAVE",
+      "reason": "Not eligible because age 18 is below the minimum of 21; CIBIL score 645 is below the minimum of 700.",
+      "what_to_change": "To qualify: raise the CIBIL score by 55 points to 700; and wait until age 21 (in 3 years)."
+    },
+    {
+      "profile": {
+        "annual_income": 1933568.32,
+        "age": 44,
+        "cibil": 761,
+        "employment": "salaried",
+        "existing_relationship": false,
+        "banks": [
+          "SBI",
+          "HDFC"
+        ]
+      },
+      "card": "SBI Elite",
+      "reason": "Not eligible because annual income of ₹19,33,568 is below the ₹20,00,000 minimum; CIBIL score 761 is below the minimum of 780; an existing SBI relationship is required and the applicant does not have one.",
+      "what_to_change": "To qualify: raise annual income by ₹66,432 (about ₹5,536 a month) to the ₹20,00,000 minimum; raise the CIBIL score by 19 points to 780; and open an account with SBI first (the card is offered to existing customers only)."
+    },
+    {
+      "profile": {
+        "annual_income": 1224218.44,
+        "age": 19,
+        "cibil": 654,
+        "employment": "business owner",
+        "existing_relationship": false,
+        "banks": [
+          "SBI",
+          "HDFC"
+        ]
+      },
+      "card": "SBI Prime",
+      "reason": "Not eligible because annual income of ₹12,24,218 is below the ₹15,00,000 minimum; age 19 is below the minimum of 21; CIBIL score 654 is below the minimum of 750; employment type 'business owner' is not one of the accepted types (salaried, self-employed).",
+      "what_to_change": "Not reachable by changing income or score: the card accepts only salaried or self-employed applicants, so a change in income or score alone would not make a business owner applicant eligible."
+    }
+  ]
+}

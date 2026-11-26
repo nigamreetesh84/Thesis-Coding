@@ -1,0 +1,13 @@
+{
+  "framework": "flower 1.45.0",
+  "transport": "Flower Fleet API over HTTP (HTTPS when TLS is on)",
+  "rounds_completed": 3,
+  "clients": [
+    "HDFC",
+    "SBI"
+  ],
+  "bytes_per_upload": 8650752,
+  "bytes_total": 103809024,
+  "mean_round_seconds": 102.16333333333334,
+  "train_seconds": 309.0
+}
